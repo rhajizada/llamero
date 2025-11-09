@@ -1,0 +1,21 @@
+# Default role mappings for Llamero. Configure LLAMERO_ROLE_GROUPS to point IdP
+# group names at the canonical roles below (admin, maintainer, user).
+default_role: user
+roles:
+  - name: admin
+    scopes:
+      - admin
+      - chat
+      - generate
+      - embed
+      - models:*
+  - name: maintainer
+    scopes:
+      - chat
+      - generate
+      - models:pull
+      - models:push
+  - name: user
+    scopes:
+      - chat
+      - embed
