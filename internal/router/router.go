@@ -3,8 +3,8 @@ package router
 import (
 	"net/http"
 
-	"github.com/hajizar/llamero/internal/handler"
-	"github.com/hajizar/llamero/internal/middleware"
+	"github.com/rhajizada/llamero/internal/handler"
+	"github.com/rhajizada/llamero/internal/middleware"
 )
 
 // Router wires URL paths to handler methods.

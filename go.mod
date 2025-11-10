@@ -1,4 +1,4 @@
-module github.com/hajizar/llamero
+module github.com/rhajizada/llamero
 
 go 1.25
 

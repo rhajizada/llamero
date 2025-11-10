@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/hajizar/llamero/internal/auth"
+	"github.com/rhajizada/llamero/internal/auth"
 )
 
 // Authz applies JWT verification and scope enforcement to HTTP handlers.

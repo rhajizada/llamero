@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hajizar/llamero/internal/middleware"
-	"github.com/hajizar/llamero/internal/repository"
-	"github.com/hajizar/llamero/internal/service"
+	"github.com/rhajizada/llamero/internal/middleware"
+	"github.com/rhajizada/llamero/internal/repository"
+	"github.com/rhajizada/llamero/internal/service"
 )
 
 // Health reports a basic status.

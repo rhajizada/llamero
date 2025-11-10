@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/hajizar/llamero/internal/repository"
+	"github.com/rhajizada/llamero/internal/repository"
 )
 
 // Service contains the business logic that interacts with persistence.

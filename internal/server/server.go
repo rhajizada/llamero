@@ -7,13 +7,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/hajizar/llamero/internal/auth"
-	"github.com/hajizar/llamero/internal/config"
-	"github.com/hajizar/llamero/internal/handler"
-	"github.com/hajizar/llamero/internal/middleware"
-	"github.com/hajizar/llamero/internal/roles"
-	"github.com/hajizar/llamero/internal/router"
-	"github.com/hajizar/llamero/internal/service"
+	"github.com/rhajizada/llamero/internal/auth"
+	"github.com/rhajizada/llamero/internal/config"
+	"github.com/rhajizada/llamero/internal/handler"
+	"github.com/rhajizada/llamero/internal/middleware"
+	"github.com/rhajizada/llamero/internal/roles"
+	"github.com/rhajizada/llamero/internal/router"
+	"github.com/rhajizada/llamero/internal/service"
 )
 
 // Server wraps the HTTP server lifecycle.

@@ -6,12 +6,12 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/hajizar/llamero/internal/config"
-	"github.com/hajizar/llamero/internal/db"
-	"github.com/hajizar/llamero/internal/repository"
-	"github.com/hajizar/llamero/internal/roles"
-	"github.com/hajizar/llamero/internal/server"
-	"github.com/hajizar/llamero/internal/service"
+	"github.com/rhajizada/llamero/internal/config"
+	"github.com/rhajizada/llamero/internal/db"
+	"github.com/rhajizada/llamero/internal/repository"
+	"github.com/rhajizada/llamero/internal/roles"
+	"github.com/rhajizada/llamero/internal/server"
+	"github.com/rhajizada/llamero/internal/service"
 )
 
 func main() {

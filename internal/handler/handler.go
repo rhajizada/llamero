@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/hajizar/llamero/internal/auth"
-	"github.com/hajizar/llamero/internal/config"
-	"github.com/hajizar/llamero/internal/roles"
-	"github.com/hajizar/llamero/internal/service"
+	"github.com/rhajizada/llamero/internal/auth"
+	"github.com/rhajizada/llamero/internal/config"
+	"github.com/rhajizada/llamero/internal/roles"
+	"github.com/rhajizada/llamero/internal/service"
 )
 
 // Handler coordinates OAuth flow endpoints and JWT issuance.

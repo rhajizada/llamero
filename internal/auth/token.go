@@ -15,7 +15,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 
-	"github.com/hajizar/llamero/internal/config"
+	"github.com/rhajizada/llamero/internal/config"
 )
 
 // TokenIssuer signs internal Llamero JWTs.
