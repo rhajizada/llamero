@@ -50,9 +50,12 @@ func NewTokenIssuer(cfg config.JWTConfig) (*TokenIssuer, error) {
 }
 
 // Issue signs a JWT with the supplied identity metadata.
-func (i *TokenIssuer) Issue(subject, email, role string, scopes []string) (string, error) {
-	if subject == "" {
-		return "", errors.New("subject cannot be empty")
+func (i *TokenIssuer) Issue(userID uuid.UUID, externalSub, email, role string, scopes []string) (string, error) {
+	if userID == uuid.Nil {
+		return "", errors.New("user id cannot be empty")
+	}
+	if externalSub == "" {
+		return "", errors.New("external subject cannot be empty")
 	}
 	if len(scopes) == 0 {
 		return "", errors.New("scopes cannot be empty")
@@ -60,16 +63,17 @@ func (i *TokenIssuer) Issue(subject, email, role string, scopes []string) (strin
 
 	now := time.Now()
 	claims := jwt.MapClaims{
-		"iss":    i.cfg.Issuer,
-		"sub":    subject,
-		"email":  email,
-		"role":   role,
-		"scopes": scopes,
-		"type":   "session",
-		"jti":    uuid.NewString(),
-		"iat":    now.Unix(),
-		"exp":    now.Add(i.cfg.TTL).Unix(),
-		"aud":    i.cfg.Audience,
+		"iss":     i.cfg.Issuer,
+		"sub":     userID.String(),
+		"ext_sub": externalSub,
+		"email":   email,
+		"role":    role,
+		"scopes":  scopes,
+		"type":    "session",
+		"jti":     uuid.NewString(),
+		"iat":     now.Unix(),
+		"exp":     now.Add(i.cfg.TTL).Unix(),
+		"aud":     i.cfg.Audience,
 	}
 
 	t := jwt.NewWithClaims(i.method, claims)

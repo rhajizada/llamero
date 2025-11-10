@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -15,6 +16,7 @@ type ServerConfig struct {
 	OAuth       OAuthConfig
 	JWT         JWTConfig
 	Roles       RoleMappingConfig
+	Database    DatabaseConfig
 }
 
 // OAuthConfig captures the OAuth2 provider integration points.
@@ -44,6 +46,22 @@ type JWTConfig struct {
 type RoleMappingConfig struct {
 	Raw    string              `env:"LLAMERO_ROLE_GROUPS"`
 	Groups map[string][]string `env:"-"`
+}
+
+// DatabaseConfig holds Postgres connection details.
+type DatabaseConfig struct {
+	Postgres      PostgresConfig
+	MigrationsDir string `env:"LLAMERO_MIGRATIONS_DIR" envDefault:"data/sql/migrations"`
+}
+
+// PostgresConfig stores connection details for Postgres.
+type PostgresConfig struct {
+	Host     string `env:"LLAMERO_POSTGRES_HOST,notEmpty"`
+	Port     int    `env:"LLAMERO_POSTGRES_PORT" envDefault:"5432"`
+	User     string `env:"LLAMERO_POSTGRES_USER,notEmpty"`
+	Password string `env:"LLAMERO_POSTGRES_PASSWORD,notEmpty"`
+	DBName   string `env:"LLAMERO_POSTGRES_DBNAME,notEmpty"`
+	SSLMode  string `env:"LLAMERO_POSTGRES_SSLMODE" envDefault:"disable"`
 }
 
 // LoadServer populates ServerConfig from environment variables.
@@ -90,6 +108,18 @@ func parseRoleGroups(value string) (map[string][]string, error) {
 		result[role] = dedupe(groups)
 	}
 	return result, nil
+}
+
+// DSN returns the connection string for Postgres.
+func (p PostgresConfig) DSN() string {
+	userInfo := url.UserPassword(p.User, p.Password)
+	return (&url.URL{
+		Scheme:   "postgres",
+		User:     userInfo,
+		Host:     fmt.Sprintf("%s:%d", p.Host, p.Port),
+		Path:     p.DBName,
+		RawQuery: fmt.Sprintf("sslmode=%s", p.SSLMode),
+	}).String()
 }
 
 func dedupe(values []string) []string {

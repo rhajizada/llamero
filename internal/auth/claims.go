@@ -5,10 +5,11 @@ import "github.com/golang-jwt/jwt/v5"
 // Claims represents the JWT payload used across Llamero services.
 type Claims struct {
 	jwt.RegisteredClaims
-	Email  string   `json:"email"`
-	Role   string   `json:"role"`
-	Scopes []string `json:"scopes"`
-	Type   string   `json:"type"`
+	Email       string   `json:"email"`
+	Role        string   `json:"role"`
+	Scopes      []string `json:"scopes"`
+	Type        string   `json:"type"`
+	ExternalSub string   `json:"ext_sub,omitempty"`
 }
 
 // HasScopes returns true when all required scopes exist in the claim set.

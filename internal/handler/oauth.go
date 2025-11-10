@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/hajizar/llamero/internal/middleware"
+	"github.com/hajizar/llamero/internal/repository"
+	"github.com/hajizar/llamero/internal/service"
 )
 
 // Health reports a basic status.
@@ -74,7 +76,28 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.issuer.Issue(user.Subject, user.Email, role, scopes)
+	upserted, err := h.svc.UpsertUser(ctx, repository.UpsertUserParams{
+		Sub:         user.Subject,
+		Provider:    h.cfg.OAuth.ProviderName,
+		Email:       user.Email,
+		DisplayName: nullableString(user.Name),
+		Role:        role,
+		Scopes:      scopes,
+		Groups:      user.Groups,
+		LastLoginAt: timePtr(time.Now()),
+	})
+	if err != nil {
+		h.logger.Printf("upsert user: %v", err)
+		var appErr *service.Error
+		if errors.As(err, &appErr) {
+			writeError(w, appErr.Code, appErr.Message)
+		} else {
+			writeError(w, http.StatusInternalServerError, "failed to persist user")
+		}
+		return
+	}
+
+	token, err := h.issuer.Issue(upserted.ID, user.Subject, user.Email, role, scopes)
 	if err != nil {
 		h.logger.Printf("issue token: %v", err)
 		writeError(w, http.StatusInternalServerError, "token issuance failed")

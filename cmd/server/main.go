@@ -7,8 +7,11 @@ import (
 	"syscall"
 
 	"github.com/hajizar/llamero/internal/config"
+	"github.com/hajizar/llamero/internal/db"
+	"github.com/hajizar/llamero/internal/repository"
 	"github.com/hajizar/llamero/internal/roles"
 	"github.com/hajizar/llamero/internal/server"
+	"github.com/hajizar/llamero/internal/service"
 )
 
 func main() {
@@ -17,18 +20,32 @@ func main() {
 		log.Fatalf("load config: %v", err)
 	}
 
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
 	roleStore, err := roles.Load(roles.DefaultPath, cfg.Roles.Groups)
 	if err != nil {
 		log.Fatalf("load roles: %v", err)
 	}
 
-	srv, err := server.New(cfg, roleStore, log.Default())
+	dsn := cfg.Database.Postgres.DSN()
+	if err := db.Migrate(ctx, dsn, cfg.Database.MigrationsDir); err != nil {
+		log.Fatalf("migrate database: %v", err)
+	}
+
+	pool, err := db.Connect(ctx, dsn)
+	if err != nil {
+		log.Fatalf("connect database: %v", err)
+	}
+	defer pool.Close()
+
+	queries := repository.New(pool)
+	svc := service.New(queries)
+
+	srv, err := server.New(cfg, roleStore, svc, log.Default())
 	if err != nil {
 		log.Fatalf("init server: %v", err)
 	}
-
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
 
 	if err := srv.Run(ctx); err != nil {
 		log.Fatalf("server error: %v", err)

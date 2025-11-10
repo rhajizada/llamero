@@ -55,6 +55,14 @@ LLAMERO_JWT_PRIVATE_KEY_PATH=secrets/jwt_private.pem
 LLAMERO_JWT_PUBLIC_KEY_PATH=secrets/jwt_public.pem
 LLAMERO_JWT_TTL=1h
 
+LLAMERO_POSTGRES_HOST=localhost
+LLAMERO_POSTGRES_PORT=5432
+LLAMERO_POSTGRES_USER=llamero
+LLAMERO_POSTGRES_PASSWORD=changeme
+LLAMERO_POSTGRES_DBNAME=llamero
+LLAMERO_POSTGRES_SSLMODE=disable
+LLAMERO_MIGRATIONS_DIR=data/sql/migrations
+
 # Map IdP groups to internal roles defined in config/roles.yaml
 # admin=AdminsGroup;maintainer=MaintainersGroup;user=EveryoneGroup
 LLAMERO_ROLE_GROUPS=admin=admins;maintainer=maintainers;user=users
@@ -64,6 +72,10 @@ Source the file before running anything:
 
 ```bash
 source .env
+
+# Run migrations (optional if you trust the server to migrate on boot)
+export LLAMERO_DATABASE_URL="postgres://$LLAMERO_POSTGRES_USER:$LLAMERO_POSTGRES_PASSWORD@$LLAMERO_POSTGRES_HOST:$LLAMERO_POSTGRES_PORT/$LLAMERO_POSTGRES_DBNAME?sslmode=$LLAMERO_POSTGRES_SSLMODE"
+go run github.com/pressly/goose/v3/cmd/goose -dir data/sql/migrations postgres "$LLAMERO_DATABASE_URL" up
 ```
 
 ## 4. Start the Server
