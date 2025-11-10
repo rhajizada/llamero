@@ -23,12 +23,17 @@ func New(h *handler.Handler, authz *middleware.Authz) *Router {
 	r.Handle("/healthz", http.HandlerFunc(h.Health))
 	r.Handle("/auth/login", http.HandlerFunc(h.Login))
 	r.Handle("/auth/callback", http.HandlerFunc(h.Callback))
-	if authz != nil {
-		r.Handle("/auth/me", http.HandlerFunc(h.Profile), authz.Require("chat"))
-		r.Handle("/admin/backends", http.HandlerFunc(h.HandleListBackends), authz.Require("admin"))
-	} else {
-		r.Handle("/auth/me", http.HandlerFunc(h.Profile))
+	if authz == nil {
+		panic("auth middleware is required")
 	}
+
+	r.Handle("/api/users/me", http.HandlerFunc(h.Profile), authz.Require("chat"))
+	r.Handle("/api/admin/backends", http.HandlerFunc(h.HandleListBackends), authz.Require("admin"))
+	r.Handle("/v1/chat/completions", http.HandlerFunc(h.HandleChatCompletions), authz.Require("chat"))
+	r.Handle("/v1/completions", http.HandlerFunc(h.HandleCompletions), authz.Require("generate"))
+	r.Handle("/v1/embeddings", http.HandlerFunc(h.HandleEmbeddings), authz.Require("embed"))
+	r.Handle("/v1/models", http.HandlerFunc(h.HandleListModels), authz.Require("models:read"))
+	r.Handle("GET /v1/models/{model}", http.HandlerFunc(h.HandleGetModel), authz.Require("models:read"))
 	return r
 }
 

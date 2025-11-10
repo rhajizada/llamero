@@ -21,13 +21,62 @@ definitions:
       updated_at:
         type: string
     type: object
+  Model:
+    properties:
+      created:
+        type: integer
+      id:
+        type: string
+      object:
+        type: string
+      owned_by:
+        type: string
+    type: object
+  ModelList:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/Model'
+        type: array
+      object:
+        type: string
+    type: object
+  User:
+    properties:
+      created_at:
+        type: string
+      display_name:
+        type: string
+      email:
+        type: string
+      external_sub:
+        type: string
+      groups:
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      last_login_at:
+        type: string
+      provider:
+        type: string
+      role:
+        type: string
+      scopes:
+        items:
+          type: string
+        type: array
+      updated_at:
+        type: string
+    type: object
 info:
   contact: {}
   description: Llamero control plane API.
   title: Llamero API
   version: "1.0"
 paths:
-  /admin/backends:
+  /api/admin/backends:
     get:
       produces:
       - application/json
@@ -49,6 +98,84 @@ paths:
       summary: List registered backends
       tags:
       - Backends
+  /api/users/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/User'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get authenticated user profile
+      tags:
+      - Users
+  /v1/models:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ModelList'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List available models
+      tags:
+      - Models
+  /v1/models/{model}:
+    get:
+      parameters:
+      - description: Model ID
+        in: path
+        name: model
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Model'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get model metadata
+      tags:
+      - Models
 securityDefinitions:
   BearerAuth:
     in: header

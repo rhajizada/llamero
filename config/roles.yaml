@@ -8,14 +8,16 @@ roles:
       - chat
       - generate
       - embed
-      - models:*
+      - models:read
   - name: maintainer
     scopes:
       - chat
       - generate
       - models:pull
       - models:push
+      - models:read
   - name: user
     scopes:
       - chat
       - embed
+      - models:read

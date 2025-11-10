@@ -62,6 +62,9 @@ func main() {
 	if err := svc.RegisterBackends(ctx, defs); err != nil {
 		log.Fatalf("register backends: %v", err)
 	}
+	if err := svc.CheckBackends(ctx); err != nil {
+		log.Printf("warn: initial backend health check failed: %v", err)
+	}
 
 	srv, err := server.New(cfg, roleStore, svc, log.Default())
 	if err != nil {

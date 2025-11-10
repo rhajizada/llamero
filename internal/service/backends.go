@@ -2,9 +2,12 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/ollama/ollama/api"
@@ -47,11 +50,12 @@ func (s *Service) CheckBackends(ctx context.Context) error {
 	}
 	for _, backend := range backends {
 		start := time.Now()
-		models, err := s.pingBackend(ctx, backend.Address)
+		modelMeta, err := s.pingBackend(ctx, backend.Address)
 		backend.Healthy = err == nil
 		backend.LatencyMS = time.Since(start).Milliseconds()
 		if err == nil {
-			backend.Models = models
+			backend.Models = extractModelNames(modelMeta)
+			backend.ModelMeta = modelMeta
 		}
 		backend.UpdatedAt = time.Now()
 		if saveErr := s.store.SaveBackend(ctx, backend, 0); saveErr != nil {
@@ -59,6 +63,27 @@ func (s *Service) CheckBackends(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// ErrNoHealthyBackends indicates that no registered backend can serve a request.
+var ErrNoHealthyBackends = errors.New("no healthy backends available")
+
+// BackendRoute contains the minimum backend data required for proxying.
+type BackendRoute struct {
+	ID      string
+	Address string
+}
+
+// RouteBackend selects a healthy backend for a given model.
+func (s *Service) RouteBackend(ctx context.Context, model string) (BackendRoute, error) {
+	status, err := s.selectBackend(ctx, model)
+	if err != nil {
+		return BackendRoute{}, err
+	}
+	return BackendRoute{
+		ID:      status.ID,
+		Address: status.Address,
+	}, nil
 }
 
 // ListBackends returns all backend statuses from Redis.
@@ -82,21 +107,145 @@ func (s *Service) ListBackends(ctx context.Context) ([]models.Backend, error) {
 	return backends, nil
 }
 
-func (s *Service) pingBackend(ctx context.Context, baseURL string) ([]string, error) {
+func (s *Service) selectBackend(ctx context.Context, model string) (redisstore.BackendStatus, error) {
+	statuses, err := s.store.ListBackends(ctx)
+	if err != nil {
+		return redisstore.BackendStatus{}, err
+	}
+
+	var fallback *redisstore.BackendStatus
+	for _, status := range statuses {
+		if !status.Healthy || status.Address == "" {
+			continue
+		}
+		if model == "" || contains(status.Models, model) {
+			return status, nil
+		}
+		if fallback == nil {
+			copy := status
+			fallback = &copy
+		}
+	}
+	if fallback != nil {
+		return *fallback, nil
+	}
+	return redisstore.BackendStatus{}, ErrNoHealthyBackends
+}
+
+func (s *Service) pingBackend(ctx context.Context, baseURL string) ([]redisstore.ModelInfo, error) {
 	parsed, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, err
 	}
 	client := api.NewClient(parsed, http.DefaultClient)
-	reqCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	return fetchInstalledModels(ctx, client)
+}
+
+func fetchInstalledModels(ctx context.Context, client *api.Client) ([]redisstore.ModelInfo, error) {
+	metaMap := make(map[string]redisstore.ModelInfo)
+
+	listCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	resp, err := client.List(reqCtx)
+	resp, err := client.List(listCtx)
 	if err != nil {
 		return nil, err
 	}
-	models := make([]string, 0, len(resp.Models))
-	for _, m := range resp.Models {
-		models = append(models, m.Name)
+	addListModels(metaMap, resp.Models)
+
+	runningCtx, cancelRunning := context.WithTimeout(ctx, 5*time.Second)
+	defer cancelRunning()
+	if running, err := client.ListRunning(runningCtx); err == nil {
+		addProcessModels(metaMap, running.Models)
 	}
-	return models, nil
+
+	if len(metaMap) == 0 {
+		return nil, nil
+	}
+	out := make([]redisstore.ModelInfo, 0, len(metaMap))
+	for _, info := range metaMap {
+		out = append(out, info)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].Name < out[j].Name
+	})
+	return out, nil
+}
+
+func addListModels(registry map[string]redisstore.ModelInfo, models []api.ListModelResponse) {
+	for _, model := range models {
+		name := firstModelName(model.Name, model.Model)
+		if name == "" {
+			continue
+		}
+		created := model.ModifiedAt
+		if created.IsZero() {
+			created = time.Now()
+		}
+		registry[name] = redisstore.ModelInfo{
+			Name:      name,
+			CreatedAt: created,
+			OwnedBy:   inferOwner(model.RemoteHost),
+		}
+	}
+}
+
+func addProcessModels(registry map[string]redisstore.ModelInfo, models []api.ProcessModelResponse) {
+	for _, model := range models {
+		name := firstModelName(model.Name, model.Model)
+		if name == "" {
+			continue
+		}
+		if _, exists := registry[name]; exists {
+			continue
+		}
+		created := model.ExpiresAt
+		if created.IsZero() {
+			created = time.Now()
+		}
+		registry[name] = redisstore.ModelInfo{
+			Name:      name,
+			CreatedAt: created,
+			OwnedBy:   "library",
+		}
+	}
+}
+
+func firstModelName(values ...string) string {
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func inferOwner(remoteHost string) string {
+	if strings.TrimSpace(remoteHost) == "" {
+		return "library"
+	}
+	return remoteHost
+}
+
+func extractModelNames(models []redisstore.ModelInfo) []string {
+	if len(models) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(models))
+	for _, m := range models {
+		names = append(names, m.Name)
+	}
+	return names
+}
+
+func contains(values []string, target string) bool {
+	if target == "" || len(values) == 0 {
+		return false
+	}
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }

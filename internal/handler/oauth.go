@@ -10,10 +10,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/rhajizada/llamero/internal/middleware"
+	"github.com/rhajizada/llamero/internal/models"
 	"github.com/rhajizada/llamero/internal/repository"
 	"github.com/rhajizada/llamero/internal/service"
 )
+
+var _ models.User
 
 // Health reports a basic status.
 func (h *Handler) Health(w http.ResponseWriter, _ *http.Request) {
@@ -218,7 +223,15 @@ func (h *Handler) determineRole(info *userInfo) (string, []string, error) {
 	return role, scopes, nil
 }
 
-// Profile returns the authenticated user's claims. Expects middleware to populate the context.
+// Profile godoc
+// @Summary Get authenticated user profile
+// @Tags Users
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} models.User
+// @Failure 401 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/users/me [get]
 func (h *Handler) Profile(w http.ResponseWriter, r *http.Request) {
 	claims, ok := middleware.ClaimsFromContext(r.Context())
 	if !ok {
@@ -226,11 +239,22 @@ func (h *Handler) Profile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{
-		"subject": claims.Subject,
-		"email":   claims.Email,
-		"role":    claims.Role,
-		"scopes":  claims.Scopes,
-		"expires": claims.ExpiresAt,
-	})
+	userID, err := uuid.Parse(claims.Subject)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "invalid user identifier")
+		return
+	}
+
+	user, err := h.svc.GetUser(r.Context(), userID)
+	if err != nil {
+		var appErr *service.Error
+		if errors.As(err, &appErr) {
+			writeError(w, appErr.Code, appErr.Message)
+		} else {
+			writeError(w, http.StatusInternalServerError, "failed to load profile")
+		}
+		return
+	}
+
+	writeJSON(w, http.StatusOK, user)
 }

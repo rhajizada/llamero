@@ -2,6 +2,7 @@ package redisstore
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -23,20 +24,29 @@ type BackendStatus struct {
 	LatencyMS int64            `json:"latency_ms"`
 	Tags      []string         `json:"tags"`
 	Models    []string         `json:"models"`
+	ModelMeta []ModelInfo      `json:"model_meta"`
 	Weights   map[string]int64 `json:"weights"`
 	UpdatedAt time.Time        `json:"updated_at"`
+}
+
+// ModelInfo stores metadata about a single model.
+type ModelInfo struct {
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
+	OwnedBy   string    `json:"owned_by"`
 }
 
 // SaveBackend stores backend metadata and health score.
 func (s *Store) SaveBackend(ctx context.Context, status BackendStatus, score float64) error {
 	key := fmt.Sprintf(backendHashKey, status.ID)
 	fields := map[string]any{
-		"address":    status.Address,
-		"healthy":    boolAsInt(status.Healthy),
-		"latency_ms": status.LatencyMS,
-		"tags":       encodeStringSlice(status.Tags),
-		"models":     encodeStringSlice(status.Models),
-		"updated_at": status.UpdatedAt.Unix(),
+		"address":     status.Address,
+		"healthy":     boolAsInt(status.Healthy),
+		"latency_ms":  status.LatencyMS,
+		"tags":        encodeStringSlice(status.Tags),
+		"models":      encodeStringSlice(status.Models),
+		"models_meta": encodeModelMeta(status.ModelMeta),
+		"updated_at":  status.UpdatedAt.Unix(),
 	}
 	pipe := s.client.TxPipeline()
 	pipe.HSet(ctx, key, fields)
@@ -92,6 +102,11 @@ func (s *Store) ListBackends(ctx context.Context) ([]BackendStatus, error) {
 		if models, ok := values["models"]; ok && models != "" {
 			status.Models = decodeStringSlice(models)
 		}
+		if rawMeta, ok := values["models_meta"]; ok && rawMeta != "" {
+			if meta, err := decodeModelMeta(rawMeta); err == nil {
+				status.ModelMeta = meta
+			}
+		}
 		if updated, ok := values["updated_at"]; ok {
 			if ts, err := parseUnix(updated); err == nil {
 				status.UpdatedAt = ts
@@ -130,4 +145,23 @@ func decodeStringSlice(raw string) []string {
 		}
 	}
 	return out
+}
+
+func encodeModelMeta(meta []ModelInfo) string {
+	if len(meta) == 0 {
+		return ""
+	}
+	data, err := json.Marshal(meta)
+	if err != nil {
+		return ""
+	}
+	return string(data)
+}
+
+func decodeModelMeta(raw string) ([]ModelInfo, error) {
+	var meta []ModelInfo
+	if err := json.Unmarshal([]byte(raw), &meta); err != nil {
+		return nil, err
+	}
+	return meta, nil
 }
