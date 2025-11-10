@@ -9,7 +9,17 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/rhajizada/llamero/internal/models"
 	"github.com/rhajizada/llamero/internal/service"
+)
+
+var (
+	_ models.ChatCompletionRequest
+	_ models.ChatCompletionResponse
+	_ models.CompletionRequest
+	_ models.CompletionResponse
+	_ models.EmbeddingsRequest
+	_ models.EmbeddingsResponse
 )
 
 const maxProxyBodyBytes int64 = 5 << 20 // 5 MiB
@@ -43,7 +53,19 @@ type CompletionProxyRequest struct {
 	Model string `json:"model"`
 }
 
-// HandleChatCompletions proxies OpenAI-compatible chat requests to an Ollama backend.
+// HandleChatCompletions godoc
+// @Summary Proxy chat completions
+// @Tags OpenAI
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body models.ChatCompletionRequest true "Chat completion payload"
+// @Success 200 {object} models.ChatCompletionResponse
+// @Failure 400 {object} map[string]string
+// @Failure 413 {object} map[string]string
+// @Failure 502 {object} map[string]string
+// @Failure 503 {object} map[string]string
+// @Router /api/chat/completions [post]
 func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) {
 	body, err := h.readProxyPayload(r)
 	if err != nil {
@@ -64,7 +86,19 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 	h.forwardOpenAIRequest(w, r, payload.Model, body)
 }
 
-// HandleEmbeddings proxies OpenAI-compatible embedding requests to an Ollama backend.
+// HandleEmbeddings godoc
+// @Summary Proxy embeddings
+// @Tags OpenAI
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body models.EmbeddingsRequest true "Embeddings payload"
+// @Success 200 {object} models.EmbeddingsResponse
+// @Failure 400 {object} map[string]string
+// @Failure 413 {object} map[string]string
+// @Failure 502 {object} map[string]string
+// @Failure 503 {object} map[string]string
+// @Router /api/embeddings [post]
 func (h *Handler) HandleEmbeddings(w http.ResponseWriter, r *http.Request) {
 	body, err := h.readProxyPayload(r)
 	if err != nil {
@@ -85,7 +119,19 @@ func (h *Handler) HandleEmbeddings(w http.ResponseWriter, r *http.Request) {
 	h.forwardOpenAIRequest(w, r, payload.Model, body)
 }
 
-// HandleCompletions proxies legacy OpenAI completion requests to an Ollama backend.
+// HandleCompletions godoc
+// @Summary Proxy legacy completions
+// @Tags OpenAI
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body models.CompletionRequest true "Completion payload"
+// @Success 200 {object} models.CompletionResponse
+// @Failure 400 {object} map[string]string
+// @Failure 413 {object} map[string]string
+// @Failure 502 {object} map[string]string
+// @Failure 503 {object} map[string]string
+// @Router /api/completions [post]
 func (h *Handler) HandleCompletions(w http.ResponseWriter, r *http.Request) {
 	body, err := h.readProxyPayload(r)
 	if err != nil {
@@ -162,10 +208,7 @@ func (h *Handler) handleRoutingError(w http.ResponseWriter, err error) {
 
 func (h *Handler) proxyToBackend(r *http.Request, route service.BackendRoute, body []byte) (*http.Response, error) {
 	target := strings.TrimRight(route.Address, "/")
-	path := r.URL.Path
-	if path == "" || !strings.HasPrefix(path, "/") {
-		path = "/" + strings.TrimPrefix(path, "/")
-	}
+	path := normalizeOpenAIPath(r.URL.Path)
 	target += path
 	if raw := r.URL.RawQuery; raw != "" {
 		target += "?" + raw
@@ -183,6 +226,23 @@ func (h *Handler) proxyToBackend(r *http.Request, route service.BackendRoute, bo
 	applyForwardHeaders(req, r)
 
 	return h.client.Do(req)
+}
+
+func normalizeOpenAIPath(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return "/v1"
+	}
+	if strings.HasPrefix(path, "/api/") {
+		return "/v1/" + strings.TrimPrefix(path, "/api/")
+	}
+	if strings.HasPrefix(path, "/v1/") || path == "/v1" {
+		return path
+	}
+	if !strings.HasPrefix(path, "/") {
+		return "/v1/" + path
+	}
+	return path
 }
 
 func copyHeaders(dst, src http.Header) {

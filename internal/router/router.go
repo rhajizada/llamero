@@ -29,11 +29,11 @@ func New(h *handler.Handler, authz *middleware.Authz) *Router {
 
 	r.Handle("/api/users/me", http.HandlerFunc(h.Profile), authz.Require("chat"))
 	r.Handle("/api/admin/backends", http.HandlerFunc(h.HandleListBackends), authz.Require("admin"))
-	r.Handle("/v1/chat/completions", http.HandlerFunc(h.HandleChatCompletions), authz.Require("chat"))
-	r.Handle("/v1/completions", http.HandlerFunc(h.HandleCompletions), authz.Require("generate"))
-	r.Handle("/v1/embeddings", http.HandlerFunc(h.HandleEmbeddings), authz.Require("embed"))
-	r.Handle("/v1/models", http.HandlerFunc(h.HandleListModels), authz.Require("models:read"))
-	r.Handle("GET /v1/models/{model}", http.HandlerFunc(h.HandleGetModel), authz.Require("models:read"))
+	r.Handle("/api/chat/completions", http.HandlerFunc(h.HandleChatCompletions), authz.Require("chat"))
+	r.Handle("/api/completions", http.HandlerFunc(h.HandleCompletions), authz.Require("generate"))
+	r.Handle("/api/embeddings", http.HandlerFunc(h.HandleEmbeddings), authz.Require("embed"))
+	r.Handle("/api/models", http.HandlerFunc(h.HandleListModels), authz.Require("models:read"))
+	r.Handle("GET /api/models/{model}", http.HandlerFunc(h.HandleGetModel), authz.Require("models:read"))
 	return r
 }
 

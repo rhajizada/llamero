@@ -21,31 +21,6 @@ type User struct {
 	UpdatedAt   time.Time  `json:"updated_at"`
 } // @name User
 
-// Backend represents backend metadata returned by the admin API.
-type Backend struct {
-	ID        string    `json:"id"`
-	Address   string    `json:"address"`
-	Healthy   bool      `json:"healthy"`
-	LatencyMS int64     `json:"latency_ms"`
-	Tags      []string  `json:"tags"`
-	Models    []string  `json:"models"`
-	UpdatedAt time.Time `json:"updated_at"`
-} // @name Backend
-
-// Model represents an OpenAI-compatible model resource.
-type Model struct {
-	ID      string `json:"id"`
-	Object  string `json:"object"`
-	Created int64  `json:"created"`
-	OwnedBy string `json:"owned_by"`
-} // @name Model
-
-// ModelList is the response envelope for listing models.
-type ModelList struct {
-	Object string  `json:"object"`
-	Data   []Model `json:"data"`
-} // @name ModelList
-
 // NewUserFromRepo builds a User model from a repository.User.
 func NewUserFromRepo(u repository.User) User {
 	return User{

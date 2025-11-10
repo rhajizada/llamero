@@ -19,7 +19,7 @@ var _ models.ModelList
 // @Security BearerAuth
 // @Success 200 {object} models.ModelList
 // @Failure 500 {object} map[string]string
-// @Router /v1/models [get]
+// @Router /api/models [get]
 func (h *Handler) HandleListModels(w http.ResponseWriter, r *http.Request) {
 	list, err := h.svc.ListModels(r.Context())
 	if err != nil {
@@ -38,7 +38,7 @@ func (h *Handler) HandleListModels(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} models.Model
 // @Failure 404 {object} map[string]string
 // @Failure 500 {object} map[string]string
-// @Router /v1/models/{model} [get]
+// @Router /api/models/{model} [get]
 func (h *Handler) HandleGetModel(w http.ResponseWriter, r *http.Request) {
 	modelID := strings.TrimSpace(r.PathValue("model"))
 	if modelID == "" {
