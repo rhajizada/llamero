@@ -3,6 +3,8 @@ package router
 import (
 	"net/http"
 
+	httpSwagger "github.com/swaggo/http-swagger"
+
 	"github.com/rhajizada/llamero/internal/handler"
 	"github.com/rhajizada/llamero/internal/middleware"
 )
@@ -17,11 +19,13 @@ func New(h *handler.Handler, authz *middleware.Authz) *Router {
 	r := &Router{
 		mux: http.NewServeMux(),
 	}
+	r.mux.Handle("/api/docs/", httpSwagger.WrapHandler)
 	r.Handle("/healthz", http.HandlerFunc(h.Health))
 	r.Handle("/auth/login", http.HandlerFunc(h.Login))
 	r.Handle("/auth/callback", http.HandlerFunc(h.Callback))
 	if authz != nil {
 		r.Handle("/auth/me", http.HandlerFunc(h.Profile), authz.Require("chat"))
+		r.Handle("/admin/backends", http.HandlerFunc(h.HandleListBackends), authz.Require("admin"))
 	} else {
 		r.Handle("/auth/me", http.HandlerFunc(h.Profile))
 	}

@@ -1,0 +1,17 @@
+version: '3'
+
+tasks:
+  fmt:
+    desc: Run gofumpt on Go files
+    cmds:
+      - gofumpt -w ./cmd ./internal ./docs
+
+  sqlc:
+    desc: Generate repository code via sqlc
+    cmds:
+      - sqlc generate
+
+  swagger:
+    desc: Regenerate Swagger docs
+    cmds:
+      - swag init -g cmd/server/main.go --output docs --parseDependency --parseInternal

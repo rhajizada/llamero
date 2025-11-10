@@ -3,10 +3,12 @@ package config
 import (
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/caarlos0/env/v11"
+	"gopkg.in/yaml.v3"
 )
 
 // ServerConfig holds every runtime option for the HTTP server.
@@ -17,6 +19,10 @@ type ServerConfig struct {
 	JWT         JWTConfig
 	Roles       RoleMappingConfig
 	Database    DatabaseConfig
+	Store       RedisConfig
+	Backends    BackendsConfig
+	Worker      WorkerSettings
+	Scheduler   SchedulerSettings
 }
 
 // OAuthConfig captures the OAuth2 provider integration points.
@@ -52,6 +58,37 @@ type RoleMappingConfig struct {
 type DatabaseConfig struct {
 	Postgres      PostgresConfig
 	MigrationsDir string `env:"LLAMERO_MIGRATIONS_DIR" envDefault:"data/sql/migrations"`
+}
+
+// RedisConfig holds settings for Redis/Asynq connections.
+type RedisConfig struct {
+	Addr     string `env:"LLAMERO_REDIS_ADDR,notEmpty"`
+	Username string `env:"LLAMERO_REDIS_USERNAME"`
+	Password string `env:"LLAMERO_REDIS_PASSWORD"`
+	DB       int    `env:"LLAMERO_REDIS_DB" envDefault:"0"`
+}
+
+// BackendsConfig controls static backend definitions.
+type BackendsConfig struct {
+	FilePath string `env:"LLAMERO_BACKENDS_FILE" envDefault:"config/backends.yaml"`
+}
+
+// WorkerSettings control the background worker runtime.
+type WorkerSettings struct {
+	Concurrency int `env:"LLAMERO_WORKER_CONCURRENCY" envDefault:"5"`
+}
+
+// SchedulerSettings control recurring job schedules.
+type SchedulerSettings struct {
+	BackendPingSpec string `env:"LLAMERO_SCHEDULER_PING_SPEC" envDefault:"@every 5m"`
+}
+
+// BackendDefinition describes a single Ollama backend entry.
+type BackendDefinition struct {
+	ID      string   `yaml:"id"`
+	Address string   `yaml:"address"`
+	Tags    []string `yaml:"tags"`
+	Weight  int      `yaml:"weight"`
 }
 
 // PostgresConfig stores connection details for Postgres.
@@ -137,4 +174,19 @@ func dedupe(values []string) []string {
 		out = append(out, v)
 	}
 	return out
+}
+
+// LoadBackendDefinitions reads backend definitions from YAML.
+func LoadBackendDefinitions(path string) ([]BackendDefinition, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read backends file: %w", err)
+	}
+	var doc struct {
+		Backends []BackendDefinition `yaml:"backends"`
+	}
+	if err := yaml.Unmarshal(raw, &doc); err != nil {
+		return nil, fmt.Errorf("parse backends file: %w", err)
+	}
+	return doc.Backends, nil
 }

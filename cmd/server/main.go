@@ -1,3 +1,10 @@
+// @title Llamero API
+// @version 1.0
+// @description Llamero control plane API.
+// @BasePath /
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
 package main
 
 import (
@@ -6,8 +13,10 @@ import (
 	"os/signal"
 	"syscall"
 
+	_ "github.com/rhajizada/llamero/docs"
 	"github.com/rhajizada/llamero/internal/config"
 	"github.com/rhajizada/llamero/internal/db"
+	"github.com/rhajizada/llamero/internal/redisstore"
 	"github.com/rhajizada/llamero/internal/repository"
 	"github.com/rhajizada/llamero/internal/roles"
 	"github.com/rhajizada/llamero/internal/server"
@@ -40,7 +49,19 @@ func main() {
 	defer pool.Close()
 
 	queries := repository.New(pool)
-	svc := service.New(queries)
+	cacheStore, err := redisstore.New(&cfg.Store)
+	if err != nil {
+		log.Fatalf("connect redis: %v", err)
+	}
+	svc := service.New(queries, cacheStore)
+
+	defs, err := config.LoadBackendDefinitions(cfg.Backends.FilePath)
+	if err != nil {
+		log.Fatalf("load backends: %v", err)
+	}
+	if err := svc.RegisterBackends(ctx, defs); err != nil {
+		log.Fatalf("register backends: %v", err)
+	}
 
 	srv, err := server.New(cfg, roleStore, svc, log.Default())
 	if err != nil {

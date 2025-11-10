@@ -1,0 +1,6 @@
+backends:
+  - id: backend-local
+    address: http://localhost:11434
+    tags:
+      - local
+    weight: 1

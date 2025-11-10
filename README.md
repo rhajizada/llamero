@@ -63,6 +63,13 @@ LLAMERO_POSTGRES_DBNAME=llamero
 LLAMERO_POSTGRES_SSLMODE=disable
 LLAMERO_MIGRATIONS_DIR=data/sql/migrations
 
+LLAMERO_REDIS_ADDR=redis:6379
+LLAMERO_REDIS_USERNAME=
+LLAMERO_REDIS_PASSWORD=
+LLAMERO_REDIS_DB=0
+
+LLAMERO_BACKENDS_FILE=config/backends.yaml
+
 # Map IdP groups to internal roles defined in config/roles.yaml
 # admin=AdminsGroup;maintainer=MaintainersGroup;user=EveryoneGroup
 LLAMERO_ROLE_GROUPS=admin=admins;maintainer=maintainers;user=users

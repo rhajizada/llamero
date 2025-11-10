@@ -8,3 +8,16 @@ services:
       POSTGRES_PASSWORD: ${LLAMERO_POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
+
+  redis:
+    image: redis:8
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    container_name: ollama
+    ports:
+      - "11434:11434"
