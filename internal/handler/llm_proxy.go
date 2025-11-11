@@ -38,12 +38,12 @@ var hopHeaders = []string{
 
 var errProxyBodyTooLarge = errors.New("request body too large")
 
-// ChatCompletionProxyRequest represents the subset of OpenAI fields that Llamero inspects.
+// ChatCompletionProxyRequest represents the subset of LLM fields that Llamero inspects.
 type ChatCompletionProxyRequest struct {
 	Model string `json:"model"`
 } // @name ChatCompletionProxyRequest
 
-// EmbeddingsProxyRequest represents the subset of OpenAI fields that Llamero inspects.
+// EmbeddingsProxyRequest represents the subset of LLM fields that Llamero inspects.
 type EmbeddingsProxyRequest struct {
 	Model string `json:"model"`
 } // @name EmbeddingsProxyRequest
@@ -55,7 +55,7 @@ type CompletionProxyRequest struct {
 
 // HandleChatCompletions godoc
 // @Summary Proxy chat completions
-// @Tags OpenAI
+// @Tags LLM
 // @Accept json
 // @Produce json
 // @Security BearerAuth
@@ -83,12 +83,12 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	h.forwardOpenAIRequest(w, r, payload.Model, body)
+	h.forwardLLMRequest(w, r, payload.Model, body)
 }
 
 // HandleEmbeddings godoc
 // @Summary Proxy embeddings
-// @Tags OpenAI
+// @Tags LLM
 // @Accept json
 // @Produce json
 // @Security BearerAuth
@@ -116,12 +116,12 @@ func (h *Handler) HandleEmbeddings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.forwardOpenAIRequest(w, r, payload.Model, body)
+	h.forwardLLMRequest(w, r, payload.Model, body)
 }
 
 // HandleCompletions godoc
 // @Summary Proxy legacy completions
-// @Tags OpenAI
+// @Tags LLM
 // @Accept json
 // @Produce json
 // @Security BearerAuth
@@ -149,7 +149,7 @@ func (h *Handler) HandleCompletions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.forwardOpenAIRequest(w, r, payload.Model, body)
+	h.forwardLLMRequest(w, r, payload.Model, body)
 }
 
 func (h *Handler) readProxyPayload(r *http.Request) ([]byte, error) {
@@ -174,7 +174,7 @@ func (h *Handler) writeProxyReadError(w http.ResponseWriter, err error) {
 	}
 }
 
-func (h *Handler) forwardOpenAIRequest(w http.ResponseWriter, r *http.Request, model string, body []byte) {
+func (h *Handler) forwardLLMRequest(w http.ResponseWriter, r *http.Request, model string, body []byte) {
 	route, err := h.svc.RouteBackend(r.Context(), model)
 	if err != nil {
 		h.handleRoutingError(w, err)
@@ -208,7 +208,7 @@ func (h *Handler) handleRoutingError(w http.ResponseWriter, err error) {
 
 func (h *Handler) proxyToBackend(r *http.Request, route service.BackendRoute, body []byte) (*http.Response, error) {
 	target := strings.TrimRight(route.Address, "/")
-	path := normalizeOpenAIPath(r.URL.Path)
+	path := normalizeLLMPath(r.URL.Path)
 	target += path
 	if raw := r.URL.RawQuery; raw != "" {
 		target += "?" + raw
@@ -228,7 +228,7 @@ func (h *Handler) proxyToBackend(r *http.Request, route service.BackendRoute, bo
 	return h.client.Do(req)
 }
 
-func normalizeOpenAIPath(path string) string {
+func normalizeLLMPath(path string) string {
 	path = strings.TrimSpace(path)
 	if path == "" {
 		return "/v1"

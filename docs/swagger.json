@@ -58,7 +58,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "OpenAI"
+                    "LLM"
                 ],
                 "summary": "Proxy chat completions",
                 "parameters": [
@@ -132,7 +132,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "OpenAI"
+                    "LLM"
                 ],
                 "summary": "Proxy legacy completions",
                 "parameters": [
@@ -206,7 +206,7 @@
                     "application/json"
                 ],
                 "tags": [
-                    "OpenAI"
+                    "LLM"
                 ],
                 "summary": "Proxy embeddings",
                 "parameters": [

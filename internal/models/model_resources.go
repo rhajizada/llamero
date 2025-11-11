@@ -1,6 +1,6 @@
 package models
 
-// Model represents an OpenAI-compatible model resource.
+// Model represents an LLM model resource.
 type Model struct {
 	ID      string `json:"id"`
 	Object  string `json:"object"`

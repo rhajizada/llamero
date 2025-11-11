@@ -430,7 +430,7 @@ paths:
       - BearerAuth: []
       summary: Proxy chat completions
       tags:
-      - OpenAI
+      - LLM
   /api/completions:
     post:
       consumes:
@@ -477,7 +477,7 @@ paths:
       - BearerAuth: []
       summary: Proxy legacy completions
       tags:
-      - OpenAI
+      - LLM
   /api/embeddings:
     post:
       consumes:
@@ -524,7 +524,7 @@ paths:
       - BearerAuth: []
       summary: Proxy embeddings
       tags:
-      - OpenAI
+      - LLM
   /api/models:
     get:
       produces:

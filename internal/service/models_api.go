@@ -9,7 +9,7 @@ import (
 	"github.com/rhajizada/llamero/internal/models"
 )
 
-// ListModels returns OpenAI-compatible model metadata aggregated from backends.
+// ListModels returns LLM-compatible model metadata aggregated from backends.
 func (s *Service) ListModels(ctx context.Context) (models.ModelList, error) {
 	modelMap, err := s.collectModels(ctx)
 	if err != nil {

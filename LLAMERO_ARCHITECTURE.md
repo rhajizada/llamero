@@ -14,7 +14,7 @@ Llamero acts as a **reverse proxy and control plane** sitting in front of a clus
 
 It serves two purposes:
 
-1. **API Gateway** — Presents OpenAI-compatible endpoints to clients (`/v1/chat/completions`, `/v1/embeddings`, etc.)
+1. **API Gateway** — Presents LLM (OpenAI API-compatible) endpoints to clients (`/v1/chat/completions`, `/v1/embeddings`, etc.)
    and proxies requests to the correct Ollama node, enforcing role- and scope-based authorization.
 2. **Cluster Manager** — Periodically pings and syncs Ollama nodes to detect health, model availability, 
    and version changes. All node metadata is cached in Redis, refreshed via background Asynq jobs.
@@ -204,7 +204,7 @@ Authenticate → Verify JWT → Check PAT (if applicable) → Enforce Scopes →
 
 ## 5. Proxy and Routing
 
-Llamero proxies OpenAI-compatible endpoints directly to healthy Ollama nodes.
+Llamero proxies LLM (OpenAI API-compatible) endpoints directly to healthy Ollama nodes.
 
 ### Flow
 
@@ -214,7 +214,7 @@ Llamero proxies OpenAI-compatible endpoints directly to healthy Ollama nodes.
 4. Forward request using `net/http` client.
 5. Stream response to client.
 
-Non-OpenAI endpoints (e.g., `/api/pull`, `/api/push`) are **not** automatically forwarded;  
+Non-LLM (non-OpenAI) endpoints (e.g., `/api/pull`, `/api/push`) are **not** automatically forwarded;  
 they require explicit admin permissions and a `node` parameter to target a backend directly.
 
 ---
@@ -439,7 +439,7 @@ All metrics are exportable to Prometheus.
 Llamero provides:
 - OAuth2 → JWT-based authentication
 - Scoped role-based access control
-- OpenAI-compatible reverse proxying
+- LLM (OpenAI API-compatible) reverse proxying
 - Health and model registry via Redis
 - Background orchestration via Asynq
 - Circuit breaking and failure isolation

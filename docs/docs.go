@@ -65,7 +65,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "OpenAI"
+                    "LLM"
                 ],
                 "summary": "Proxy chat completions",
                 "parameters": [
@@ -139,7 +139,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "OpenAI"
+                    "LLM"
                 ],
                 "summary": "Proxy legacy completions",
                 "parameters": [
@@ -213,7 +213,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "OpenAI"
+                    "LLM"
                 ],
                 "summary": "Proxy embeddings",
                 "parameters": [
