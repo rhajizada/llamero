@@ -232,6 +232,29 @@ func (h *Handler) proxyToBackend(r *http.Request, route service.BackendRoute, bo
 	return h.client.Do(req)
 }
 
+func (h *Handler) proxyBackendGET(r *http.Request, route service.BackendRoute, path string) (*http.Response, error) {
+	target := strings.TrimRight(route.Address, "/")
+	if !strings.HasPrefix(path, "/") {
+		target += "/" + path
+	} else {
+		target += path
+	}
+	if raw := r.URL.RawQuery; raw != "" {
+		target += "?" + raw
+	}
+
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, target, nil)
+	if err != nil {
+		return nil, err
+	}
+	copyHeaders(req.Header, r.Header)
+	removeHopHeaders(req.Header)
+	req.Header.Del("Authorization")
+	req.Header.Del("Content-Length")
+	applyForwardHeaders(req, r)
+	return h.client.Do(req)
+}
+
 func normalizeLLMPath(path string) string {
 	path = strings.TrimSpace(path)
 	if path == "" {

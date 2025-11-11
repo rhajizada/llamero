@@ -51,6 +51,58 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/backends/{backendID}/ps": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Forwards the request to the backend's /api/ps endpoint.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backends"
+                ],
+                "summary": "List running models on a backend",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Backend ID",
+                        "name": "backendID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/BackendProcessList"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/chat/completions": {
             "post": {
                 "security": [
@@ -430,6 +482,17 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "BackendProcessList": {
+            "type": "object",
+            "properties": {
+                "models": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/api.ProcessModelResponse"
+                    }
                 }
             }
         },
@@ -906,16 +969,13 @@ const docTemplate = `{
         "User": {
             "type": "object",
             "properties": {
-                "created_at": {
+                "createdAt": {
                     "type": "string"
                 },
-                "display_name": {
+                "displayName": {
                     "type": "string"
                 },
                 "email": {
-                    "type": "string"
-                },
-                "external_sub": {
                     "type": "string"
                 },
                 "groups": {
@@ -927,7 +987,7 @@ const docTemplate = `{
                 "id": {
                     "type": "string"
                 },
-                "last_login_at": {
+                "lastLoginAt": {
                     "type": "string"
                 },
                 "provider": {
@@ -942,8 +1002,66 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
-                "updated_at": {
+                "sub": {
                     "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.ModelDetails": {
+            "type": "object",
+            "properties": {
+                "families": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "family": {
+                    "type": "string"
+                },
+                "format": {
+                    "type": "string"
+                },
+                "parameter_size": {
+                    "type": "string"
+                },
+                "parent_model": {
+                    "type": "string"
+                },
+                "quantization_level": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.ProcessModelResponse": {
+            "type": "object",
+            "properties": {
+                "context_length": {
+                    "type": "integer"
+                },
+                "details": {
+                    "$ref": "#/definitions/api.ModelDetails"
+                },
+                "digest": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "size_vram": {
+                    "type": "integer"
                 }
             }
         }

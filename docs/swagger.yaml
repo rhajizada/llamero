@@ -21,6 +21,13 @@ definitions:
       updated_at:
         type: string
     type: object
+  BackendProcessList:
+    properties:
+      models:
+        items:
+          $ref: '#/definitions/api.ProcessModelResponse'
+        type: array
+    type: object
   ChatCompletionChoice:
     properties:
       delta:
@@ -329,13 +336,11 @@ definitions:
     type: object
   User:
     properties:
-      created_at:
+      createdAt:
         type: string
-      display_name:
+      displayName:
         type: string
       email:
-        type: string
-      external_sub:
         type: string
       groups:
         items:
@@ -343,7 +348,7 @@ definitions:
         type: array
       id:
         type: string
-      last_login_at:
+      lastLoginAt:
         type: string
       provider:
         type: string
@@ -353,8 +358,46 @@ definitions:
         items:
           type: string
         type: array
-      updated_at:
+      sub:
         type: string
+      updatedAt:
+        type: string
+    type: object
+  api.ModelDetails:
+    properties:
+      families:
+        items:
+          type: string
+        type: array
+      family:
+        type: string
+      format:
+        type: string
+      parameter_size:
+        type: string
+      parent_model:
+        type: string
+      quantization_level:
+        type: string
+    type: object
+  api.ProcessModelResponse:
+    properties:
+      context_length:
+        type: integer
+      details:
+        $ref: '#/definitions/api.ModelDetails'
+      digest:
+        type: string
+      expires_at:
+        type: string
+      model:
+        type: string
+      name:
+        type: string
+      size:
+        type: integer
+      size_vram:
+        type: integer
     type: object
 info:
   contact: {}
@@ -382,6 +425,39 @@ paths:
       security:
       - BearerAuth: []
       summary: List registered backends
+      tags:
+      - Backends
+  /api/backends/{backendID}/ps:
+    get:
+      description: Forwards the request to the backend's /api/ps endpoint.
+      parameters:
+      - description: Backend ID
+        in: path
+        name: backendID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/BackendProcessList'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Bad Gateway
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List running models on a backend
       tags:
       - Backends
   /api/chat/completions:

@@ -106,6 +106,40 @@ type BackendRoute struct {
 	Address string
 }
 
+// LookupBackendRoute fetches backend connection details by identifier.
+func (s *Service) LookupBackendRoute(ctx context.Context, backendID string) (BackendRoute, error) {
+	backendID = strings.TrimSpace(backendID)
+	if backendID == "" {
+		return BackendRoute{}, &Error{
+			Code:    http.StatusNotFound,
+			Message: "backend not found",
+		}
+	}
+	statuses, err := s.store.ListBackends(ctx)
+	if err != nil {
+		return BackendRoute{}, err
+	}
+	for _, status := range statuses {
+		if status.ID != backendID {
+			continue
+		}
+		if strings.TrimSpace(status.Address) == "" {
+			return BackendRoute{}, &Error{
+				Code:    http.StatusBadGateway,
+				Message: "backend missing address",
+			}
+		}
+		return BackendRoute{
+			ID:      status.ID,
+			Address: status.Address,
+		}, nil
+	}
+	return BackendRoute{}, &Error{
+		Code:    http.StatusNotFound,
+		Message: "backend not found",
+	}
+}
+
 // RouteBackend selects a healthy backend for a given model.
 func (s *Service) RouteBackend(ctx context.Context, model string) (BackendRoute, error) {
 	status, err := s.selectBackend(ctx, model)
