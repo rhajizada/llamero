@@ -19,26 +19,58 @@ import (
 
 // RegisterBackends seeds Redis with backend definitions.
 func (s *Service) RegisterBackends(ctx context.Context, defs []config.BackendDefinition) error {
+	existing, err := s.store.ListBackends(ctx)
+	if err != nil {
+		return err
+	}
+
+	existingByID := make(map[string]redisstore.BackendStatus, len(existing))
+	for _, backend := range existing {
+		existingByID[backend.ID] = backend
+	}
+
+	desired := make(map[string]struct{}, len(defs))
+	now := time.Now()
+
 	for _, def := range defs {
 		if def.ID == "" || def.Address == "" {
 			return fmt.Errorf("backend definition missing id or address")
 		}
-		status := redisstore.BackendStatus{
-			ID:        def.ID,
-			Address:   def.Address,
-			Healthy:   true,
-			LatencyMS: 0,
-			Tags:      def.Tags,
-			Models:    nil,
-			Weights: map[string]int64{
-				"default": int64(def.Weight),
-			},
-			UpdatedAt: time.Now(),
+
+		desired[def.ID] = struct{}{}
+
+		prev, found := existingByID[def.ID]
+		status := prev
+
+		if !found {
+			status.Healthy = true
+			status.LatencyMS = 0
+			status.Models = nil
+			status.ModelMeta = nil
 		}
+
+		status.ID = def.ID
+		status.Address = def.Address
+		status.Tags = append([]string(nil), def.Tags...)
+		status.Weights = map[string]int64{
+			"default": int64(def.Weight),
+		}
+		status.UpdatedAt = now
+
 		if err := s.store.SaveBackend(ctx, status, 0); err != nil {
 			return err
 		}
 	}
+
+	for id := range existingByID {
+		if _, ok := desired[id]; ok {
+			continue
+		}
+		if err := s.store.DeleteBackend(ctx, id); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

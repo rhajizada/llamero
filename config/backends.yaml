@@ -1,6 +1,10 @@
 backends:
-  - id: backend-local
+  - id: cyrus
     address: http://localhost:11434
     tags:
-      - local
+      - gpu
     weight: 1
+  - id: local
+    address: http://localhost:11435
+    tags:
+      - cpu
