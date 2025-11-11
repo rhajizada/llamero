@@ -7,6 +7,7 @@ import (
 
 	"github.com/rhajizada/llamero/internal/handler"
 	"github.com/rhajizada/llamero/internal/middleware"
+	"github.com/rhajizada/llamero/internal/requestctx"
 )
 
 // Router wires URL paths to handler methods.
@@ -39,7 +40,12 @@ func New(h *handler.Handler, authz *middleware.Authz) *Router {
 
 // Handle registers a route with optional middleware wrappers.
 func (r *Router) Handle(path string, handler http.Handler, wrappers ...func(http.Handler) http.Handler) {
-	wrapped := handler
+	base := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		ctx := requestctx.WithRoutePattern(req.Context(), path)
+		handler.ServeHTTP(w, req.WithContext(ctx))
+	})
+
+	var wrapped http.Handler = base
 	for i := len(wrappers) - 1; i >= 0; i-- {
 		wrapped = wrappers[i](wrapped)
 	}

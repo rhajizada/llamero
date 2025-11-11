@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/rhajizada/llamero/internal/models"
+	"github.com/rhajizada/llamero/internal/requestctx"
 	"github.com/rhajizada/llamero/internal/service"
 )
 
@@ -181,9 +182,12 @@ func (h *Handler) forwardLLMRequest(w http.ResponseWriter, r *http.Request, mode
 		return
 	}
 
-	resp, err := h.proxyToBackend(r, route, body)
+	ctx := requestctx.WithBackendID(r.Context(), route.ID)
+	req := r.WithContext(ctx)
+
+	resp, err := h.proxyToBackend(req, route, body)
 	if err != nil {
-		h.logger.Printf("proxy request failed (backend=%s): %v", route.ID, err)
+		h.logger.ErrorContext(req.Context(), "proxy request failed", "backend_id", route.ID, "err", err)
 		writeError(w, http.StatusBadGateway, "backend request failed")
 		return
 	}
@@ -193,7 +197,7 @@ func (h *Handler) forwardLLMRequest(w http.ResponseWriter, r *http.Request, mode
 	removeHopHeaders(w.Header())
 	w.WriteHeader(resp.StatusCode)
 	if _, err := io.Copy(w, resp.Body); err != nil {
-		h.logger.Printf("write proxied body: %v", err)
+		h.logger.ErrorContext(req.Context(), "write proxied body", "err", err)
 	}
 }
 
@@ -202,7 +206,7 @@ func (h *Handler) handleRoutingError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusServiceUnavailable, "no healthy backends available")
 		return
 	}
-	h.logger.Printf("route backend: %v", err)
+	h.logger.Error("route backend", "err", err)
 	writeError(w, http.StatusBadGateway, "failed to select backend")
 }
 

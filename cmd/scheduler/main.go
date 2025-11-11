@@ -1,18 +1,24 @@
 package main
 
 import (
-	"log"
+	"log/slog"
+	"os"
 
 	"github.com/hibiken/asynq"
 
 	"github.com/rhajizada/llamero/internal/config"
+	"github.com/rhajizada/llamero/internal/logging"
 	"github.com/rhajizada/llamero/internal/workers"
 )
 
 func main() {
+	logger := logging.New()
+	slog.SetDefault(logger)
+
 	cfg, err := config.LoadServer()
 	if err != nil {
-		log.Fatalf("load config: %v", err)
+		logger.Error("load config", "err", err)
+		os.Exit(1)
 	}
 
 	connOpt := &asynq.RedisClientOpt{
@@ -25,14 +31,17 @@ func main() {
 	scheduler := asynq.NewScheduler(connOpt, nil)
 	task, err := workers.NewPingBackendsTask()
 	if err != nil {
-		log.Fatalf("create task: %v", err)
+		logger.Error("create task", "err", err)
+		os.Exit(1)
 	}
 
 	if _, err := scheduler.Register(cfg.Scheduler.BackendPingSpec, task); err != nil {
-		log.Fatalf("register schedule: %v", err)
+		logger.Error("register schedule", "err", err)
+		os.Exit(1)
 	}
 
 	if err := scheduler.Run(); err != nil {
-		log.Fatalf("scheduler stopped: %v", err)
+		logger.Error("scheduler stopped", "err", err)
+		os.Exit(1)
 	}
 }

@@ -2,7 +2,7 @@ package handler
 
 import (
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -20,11 +20,11 @@ type Handler struct {
 	client *http.Client
 	state  *auth.StateStore
 	issuer *auth.TokenIssuer
-	logger *log.Logger
+	logger *slog.Logger
 }
 
 // New builds a Handler with the provided dependencies.
-func New(cfg *config.ServerConfig, roleStore *roles.Store, svc *service.Service, logger *log.Logger) (*Handler, error) {
+func New(cfg *config.ServerConfig, roleStore *roles.Store, svc *service.Service, logger *slog.Logger) (*Handler, error) {
 	if cfg == nil {
 		return nil, errors.New("config is required")
 	}
@@ -35,7 +35,7 @@ func New(cfg *config.ServerConfig, roleStore *roles.Store, svc *service.Service,
 		return nil, errors.New("service is required")
 	}
 	if logger == nil {
-		logger = log.Default()
+		logger = slog.Default()
 	}
 
 	issuer, err := auth.NewTokenIssuer(cfg.JWT)

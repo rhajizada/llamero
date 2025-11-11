@@ -2,7 +2,8 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
+	"os"
 	"os/signal"
 	"syscall"
 
@@ -10,6 +11,7 @@ import (
 
 	"github.com/rhajizada/llamero/internal/config"
 	"github.com/rhajizada/llamero/internal/db"
+	"github.com/rhajizada/llamero/internal/logging"
 	"github.com/rhajizada/llamero/internal/redisstore"
 	"github.com/rhajizada/llamero/internal/repository"
 	"github.com/rhajizada/llamero/internal/service"
@@ -17,9 +19,13 @@ import (
 )
 
 func main() {
+	logger := logging.New()
+	slog.SetDefault(logger)
+
 	cfg, err := config.LoadServer()
 	if err != nil {
-		log.Fatalf("load config: %v", err)
+		logger.Error("load config", "err", err)
+		os.Exit(1)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -27,18 +33,21 @@ func main() {
 
 	dsn := cfg.Database.Postgres.DSN()
 	if err := db.Migrate(ctx, dsn, cfg.Database.MigrationsDir); err != nil {
-		log.Fatalf("migrate database: %v", err)
+		logger.Error("migrate database", "err", err)
+		os.Exit(1)
 	}
 
 	pool, err := db.Connect(ctx, dsn)
 	if err != nil {
-		log.Fatalf("connect database: %v", err)
+		logger.Error("connect database", "err", err)
+		os.Exit(1)
 	}
 	defer pool.Close()
 
 	cacheStore, err := redisstore.New(&cfg.Store)
 	if err != nil {
-		log.Fatalf("connect redis: %v", err)
+		logger.Error("connect redis", "err", err)
+		os.Exit(1)
 	}
 
 	queries := repository.New(pool)
@@ -63,6 +72,7 @@ func main() {
 	mux.HandleFunc(workers.TypePingBackends, handler.HandlePingBackends)
 
 	if err := server.Run(mux); err != nil {
-		log.Fatalf("worker stopped: %v", err)
+		logger.Error("worker stopped", "err", err)
+		os.Exit(1)
 	}
 }

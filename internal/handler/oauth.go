@@ -31,7 +31,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	state := h.state.Issue()
 	authURL, err := h.buildAuthorizeURL(state)
 	if err != nil {
-		h.logger.Printf("build auth url: %v", err)
+		h.logger.ErrorContext(r.Context(), "build auth url", "err", err)
 		writeError(w, http.StatusInternalServerError, "configuration error")
 		return
 	}
@@ -59,7 +59,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 
 	tokenResp, err := h.exchangeCode(ctx, code)
 	if err != nil {
-		h.logger.Printf("exchange code: %v", err)
+		h.logger.ErrorContext(ctx, "exchange code", "err", err)
 		writeError(w, http.StatusBadGateway, "token exchange failed")
 		return
 	}
@@ -70,7 +70,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.fetchUserInfo(ctx, tokenResp.AccessToken)
 	if err != nil {
-		h.logger.Printf("fetch userinfo: %v", err)
+		h.logger.ErrorContext(ctx, "fetch user info", "err", err)
 		writeError(w, http.StatusBadGateway, "user info request failed")
 		return
 	}
@@ -92,7 +92,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		LastLoginAt: timePtr(time.Now()),
 	})
 	if err != nil {
-		h.logger.Printf("upsert user: %v", err)
+		h.logger.ErrorContext(ctx, "upsert user", "err", err)
 		var appErr *service.Error
 		if errors.As(err, &appErr) {
 			writeError(w, appErr.Code, appErr.Message)
@@ -104,7 +104,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 
 	token, err := h.issuer.Issue(upserted.ID, user.Subject, user.Email, role, scopes)
 	if err != nil {
-		h.logger.Printf("issue token: %v", err)
+		h.logger.ErrorContext(ctx, "issue token", "err", err)
 		writeError(w, http.StatusInternalServerError, "token issuance failed")
 		return
 	}

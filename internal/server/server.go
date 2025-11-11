@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -22,11 +22,11 @@ type Server struct {
 	handler *handler.Handler
 	router  http.Handler
 	authz   *middleware.Authz
-	logger  *log.Logger
+	logger  *slog.Logger
 }
 
 // New constructs the handler, router, and server wiring.
-func New(cfg *config.ServerConfig, roleStore *roles.Store, svc *service.Service, logger *log.Logger) (*Server, error) {
+func New(cfg *config.ServerConfig, roleStore *roles.Store, svc *service.Service, logger *slog.Logger) (*Server, error) {
 	if cfg == nil {
 		return nil, errors.New("config is required")
 	}
@@ -37,7 +37,7 @@ func New(cfg *config.ServerConfig, roleStore *roles.Store, svc *service.Service,
 		return nil, errors.New("service is required")
 	}
 	if logger == nil {
-		logger = log.Default()
+		logger = slog.Default()
 	}
 
 	h, err := handler.New(cfg, roleStore, svc, logger)
@@ -50,11 +50,12 @@ func New(cfg *config.ServerConfig, roleStore *roles.Store, svc *service.Service,
 	}
 	authz := middleware.NewAuthz(verifier)
 	r := router.New(h, authz)
+	handlerWithLogging := middleware.Logging(logger)(r)
 
 	return &Server{
 		cfg:     cfg,
 		handler: h,
-		router:  r,
+		router:  handlerWithLogging,
 		authz:   authz,
 		logger:  logger,
 	}, nil
@@ -69,7 +70,7 @@ func (s *Server) Run(ctx context.Context) error {
 
 	errCh := make(chan error, 1)
 	go func() {
-		s.logger.Printf("llamero server listening on %s", s.cfg.Address)
+		s.logger.Info("llamero server listening", "addr", s.cfg.Address)
 		if err := srv.ListenAndServe(); err != nil {
 			errCh <- err
 			return

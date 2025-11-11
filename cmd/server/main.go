@@ -9,13 +9,15 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
+	"os"
 	"os/signal"
 	"syscall"
 
 	_ "github.com/rhajizada/llamero/docs"
 	"github.com/rhajizada/llamero/internal/config"
 	"github.com/rhajizada/llamero/internal/db"
+	"github.com/rhajizada/llamero/internal/logging"
 	"github.com/rhajizada/llamero/internal/redisstore"
 	"github.com/rhajizada/llamero/internal/repository"
 	"github.com/rhajizada/llamero/internal/roles"
@@ -24,9 +26,13 @@ import (
 )
 
 func main() {
+	logger := logging.New()
+	slog.SetDefault(logger)
+
 	cfg, err := config.LoadServer()
 	if err != nil {
-		log.Fatalf("load config: %v", err)
+		logger.Error("load config", "err", err)
+		os.Exit(1)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -34,44 +40,52 @@ func main() {
 
 	roleStore, err := roles.Load(roles.DefaultPath, cfg.Roles.Groups)
 	if err != nil {
-		log.Fatalf("load roles: %v", err)
+		logger.Error("load roles", "err", err)
+		os.Exit(1)
 	}
 
 	dsn := cfg.Database.Postgres.DSN()
 	if err := db.Migrate(ctx, dsn, cfg.Database.MigrationsDir); err != nil {
-		log.Fatalf("migrate database: %v", err)
+		logger.Error("migrate database", "err", err)
+		os.Exit(1)
 	}
 
 	pool, err := db.Connect(ctx, dsn)
 	if err != nil {
-		log.Fatalf("connect database: %v", err)
+		logger.Error("connect database", "err", err)
+		os.Exit(1)
 	}
 	defer pool.Close()
 
 	queries := repository.New(pool)
 	cacheStore, err := redisstore.New(&cfg.Store)
 	if err != nil {
-		log.Fatalf("connect redis: %v", err)
+		logger.Error("connect redis", "err", err)
+		os.Exit(1)
 	}
 	svc := service.New(queries, cacheStore)
 
 	defs, err := config.LoadBackendDefinitions(cfg.Backends.FilePath)
 	if err != nil {
-		log.Fatalf("load backends: %v", err)
+		logger.Error("load backends", "err", err)
+		os.Exit(1)
 	}
 	if err := svc.RegisterBackends(ctx, defs); err != nil {
-		log.Fatalf("register backends: %v", err)
+		logger.Error("register backends", "err", err)
+		os.Exit(1)
 	}
 	if err := svc.CheckBackends(ctx); err != nil {
-		log.Printf("warn: initial backend health check failed: %v", err)
+		logger.Warn("initial backend health check failed", "err", err)
 	}
 
-	srv, err := server.New(cfg, roleStore, svc, log.Default())
+	srv, err := server.New(cfg, roleStore, svc, logger)
 	if err != nil {
-		log.Fatalf("init server: %v", err)
+		logger.Error("init server", "err", err)
+		os.Exit(1)
 	}
 
 	if err := srv.Run(ctx); err != nil {
-		log.Fatalf("server error: %v", err)
+		logger.Error("server error", "err", err)
+		os.Exit(1)
 	}
 }
