@@ -15,7 +15,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/admin/backends": {
+        "/api/backends": {
             "get": {
                 "security": [
                     {
@@ -325,91 +325,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/models": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Models"
-                ],
-                "summary": "List available models",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/ModelList"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/models/{model}": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Models"
-                ],
-                "summary": "Get model metadata",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Model ID",
-                        "name": "model",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/Model"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/users/me": {
+        "/api/profile": {
             "get": {
                 "security": [
                     {
@@ -887,37 +803,6 @@ const docTemplate = `{
                             }
                         }
                     }
-                }
-            }
-        },
-        "Model": {
-            "type": "object",
-            "properties": {
-                "created": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "object": {
-                    "type": "string"
-                },
-                "owned_by": {
-                    "type": "string"
-                }
-            }
-        },
-        "ModelList": {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/Model"
-                    }
-                },
-                "object": {
-                    "type": "string"
                 }
             }
         },

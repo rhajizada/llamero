@@ -28,14 +28,12 @@ func New(h *handler.Handler, authz *middleware.Authz) *Router {
 		panic("auth middleware is required")
 	}
 
-	r.Handle("/api/users/me", http.HandlerFunc(h.Profile), authz.Require("chat"))
-	r.Handle("/api/admin/backends", http.HandlerFunc(h.HandleListBackends), authz.Require("admin"))
-	r.Handle("GET /api/backends/{backendID}/ps", http.HandlerFunc(h.HandleBackendProcesses), authz.Require("admin"))
-	r.Handle("/api/chat/completions", http.HandlerFunc(h.HandleChatCompletions), authz.Require("chat"))
-	r.Handle("/api/completions", http.HandlerFunc(h.HandleCompletions), authz.Require("generate"))
-	r.Handle("/api/embeddings", http.HandlerFunc(h.HandleEmbeddings), authz.Require("embed"))
-	r.Handle("/api/models", http.HandlerFunc(h.HandleListModels), authz.Require("models:read"))
-	r.Handle("GET /api/models/{model}", http.HandlerFunc(h.HandleGetModel), authz.Require("models:read"))
+	r.Handle("/api/profile", http.HandlerFunc(h.Profile), authz.Require("profile:get"))
+	r.Handle("/api/backends", http.HandlerFunc(h.HandleListBackends), authz.Require("backends:list"))
+	r.Handle("GET /api/backends/{backendID}/ps", http.HandlerFunc(h.HandleBackendProcesses), authz.Require("backends:ps"))
+	r.Handle("/api/chat/completions", http.HandlerFunc(h.HandleChatCompletions), authz.Require("llm:chat"))
+	r.Handle("/api/completions", http.HandlerFunc(h.HandleCompletions), authz.Require("llm:chat"))
+	r.Handle("/api/embeddings", http.HandlerFunc(h.HandleEmbeddings), authz.Require("llm:embeddings"))
 	return r
 }
 

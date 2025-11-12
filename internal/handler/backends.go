@@ -20,7 +20,7 @@ var _ models.Backend
 // @Security BearerAuth
 // @Success 200 {array} models.Backend
 // @Failure 500 {object} map[string]string
-// @Router /api/admin/backends [get]
+// @Router /api/backends [get]
 func (h *Handler) HandleListBackends(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	backends, err := h.svc.ListBackends(ctx)

@@ -18,17 +18,28 @@ Place the private/public keys in a `secrets/` directory or any secure path you r
 
 ## 2. Define Roles and Scopes
 
-`config/roles.yaml` ships with the default `admin`, `maintainer`, and `user` roles. Update the scopes if needed, but keep the canonical role names—environment variables use them when mapping IdP groups to permissions.
+`config/roles.yaml` ships with the default `admin` and `user` roles. Update the scopes if needed, but keep the canonical role names—environment variables use them when mapping IdP groups to permissions.
 
 ```yaml
 default_role: user
 roles:
   - name: admin
-    scopes: [...]
-  - name: maintainer
-    scopes: [...]
+    scopes:
+      - backends:list
+      - backends:listModels
+      - backends:ps
+      - backends:createModel
+      - backends:pullModel
+      - backends:pushModel
+      - backends:deleteModel
+      - llm:chat
+      - llm:embeddings
+      - profile:get
   - name: user
-    scopes: [...]
+    scopes:
+      - llm:chat
+      - llm:embeddings
+      - profile:get
 ```
 
 ## 3. Create `.env`
@@ -71,8 +82,8 @@ LLAMERO_REDIS_DB=0
 LLAMERO_BACKENDS_FILE=config/backends.yaml
 
 # Map IdP groups to internal roles defined in config/roles.yaml
-# admin=AdminsGroup;maintainer=MaintainersGroup;user=EveryoneGroup
-LLAMERO_ROLE_GROUPS=admin=admins;maintainer=maintainers;user=users
+# admin=AdminsGroup;user=EveryoneGroup
+LLAMERO_ROLE_GROUPS=admin=admins;user=users
 ```
 
 Source the file before running anything:
@@ -93,4 +104,4 @@ With Go 1.21+ installed:
 go run ./cmd/server
 ```
 
-The server listens on `LLAMERO_SERVER_ADDRESS` (default `:8080`). Visit `http://localhost:8080/healthz` to confirm it’s up, hit `/auth/login` to begin the OAuth flow, and inspect `/auth/me` (requires a valid token with at least the `chat` scope).
+The server listens on `LLAMERO_SERVER_ADDRESS` (default `:8080`). Visit `http://localhost:8080/healthz` to confirm it’s up, hit `/auth/login` to begin the OAuth flow, and inspect `/auth/me` (requires a valid token with at least the `profile:get` scope).

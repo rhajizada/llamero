@@ -285,26 +285,6 @@ definitions:
           type: object
         type: array
     type: object
-  Model:
-    properties:
-      created:
-        type: integer
-      id:
-        type: string
-      object:
-        type: string
-      owned_by:
-        type: string
-    type: object
-  ModelList:
-    properties:
-      data:
-        items:
-          $ref: '#/definitions/Model'
-        type: array
-      object:
-        type: string
-    type: object
   ResponseFormatSpec:
     properties:
       type:
@@ -405,7 +385,7 @@ info:
   title: Llamero API
   version: "1.0"
 paths:
-  /api/admin/backends:
+  /api/backends:
     get:
       produces:
       - application/json
@@ -601,59 +581,7 @@ paths:
       summary: Proxy embeddings
       tags:
       - LLM
-  /api/models:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/ModelList'
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: List available models
-      tags:
-      - Models
-  /api/models/{model}:
-    get:
-      parameters:
-      - description: Model ID
-        in: path
-        name: model
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/Model'
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Get model metadata
-      tags:
-      - Models
-  /api/users/me:
+  /api/profile:
     get:
       produces:
       - application/json

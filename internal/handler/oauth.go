@@ -231,7 +231,7 @@ func (h *Handler) determineRole(info *userInfo) (string, []string, error) {
 // @Success 200 {object} models.User
 // @Failure 401 {object} map[string]string
 // @Failure 500 {object} map[string]string
-// @Router /api/users/me [get]
+// @Router /api/profile [get]
 func (h *Handler) Profile(w http.ResponseWriter, r *http.Request) {
 	claims, ok := middleware.ClaimsFromContext(r.Context())
 	if !ok {

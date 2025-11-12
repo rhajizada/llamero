@@ -94,7 +94,7 @@ Example payload:
   "sub": "user-uuid",
   "email": "dev@company.com",
   "role": "admin",
-  "scopes": ["generate", "models:pull", "models:push"],
+  "scopes": ["backends:list", "llm:chat"],
   "type": "session",
   "jti": "uuid-token-id",
   "iat": 1736250000,
@@ -120,33 +120,25 @@ Scopes represent fine-grained access rights for API endpoints.
 roles:
   admin:
     scopes:
-      - admin
-      - chat
-      - generate
-      - embed
-      - models:*
-      - models:pull
-      - models:push
-      - models:create
-      - models:delete
-      - models:copy
-  maintainer:
-    scopes:
-      - chat
-      - generate
-      - embed
-      - models:read
-      - models:pull
+      - backends:list
+      - backends:listModels
+      - backends:ps
+      - backends:createModel
+      - backends:pullModel
+      - backends:pushModel
+      - backends:deleteModel
+      - llm:chat
+      - llm:embeddings
+      - profile:get
   user:
     scopes:
-      - chat
-      - generate
-      - embed
-      - models:read
+      - llm:chat
+      - llm:embeddings
+      - profile:get
 ```
 
 Each endpoint requires a minimum scope for access.  
-Scopes can be wildcarded (`models:*` grants all model operations).
+Admin-only scopes control backend and model management, while `llm:chat`, `llm:embeddings`, and `profile:get` cover user-facing operations.
 
 ---
 
@@ -161,7 +153,7 @@ Example request:
 ```json
 {
   "name": "ci-runner",
-  "scopes": ["generate", "models:read"],
+  "scopes": ["llm:chat", "profile:get"],
   "expires_in": 2592000
 }
 ```
@@ -197,7 +189,7 @@ Authenticate → Verify JWT → Check PAT (if applicable) → Enforce Scopes →
 - PATs verified via signature + revocation lookup by `jti`.
 - Routes declare required scopes, e.g.:
   ```go
-  router.Handle("/v1/models/pull", RequireScopes("models:pull"), pullHandler)
+  router.Handle("/v1/models/pull", RequireScopes("backends:pullModel"), pullHandler)
   ```
 
 ---
