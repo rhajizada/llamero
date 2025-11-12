@@ -1,10 +1,5 @@
 backends:
-  - id: cyrus
-    address: http://localhost:11434
+  - id: ollama
+    address: http://ollama:11434
     tags:
-      - gpu
-    weight: 1
-  - id: local
-    address: http://localhost:11435
-    tags:
-      - cpu
+      - docker

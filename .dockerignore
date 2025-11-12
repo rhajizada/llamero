@@ -1,0 +1,14 @@
+.cache
+.git
+.gitignore
+.env
+docker-compose.yml
+docker-compose.override.yml
+tmp
+*.log
+*.md
+node_modules
+dist
+build
+secrets/
+config/

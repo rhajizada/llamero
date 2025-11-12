@@ -1,17 +1,106 @@
-version: '3'
+version: "3"
+
+vars:
+  name: llamero
+
+dotenv: [".env"]
 
 tasks:
   fmt:
     desc: Run gofumpt on Go files
     cmds:
-      - gofumpt -w ./cmd ./internal ./docs
+      - go tool gofumpt -w ./cmd ./internal ./docs
 
   sqlc:
     desc: Generate repository code via sqlc
     cmds:
-      - sqlc generate
+      - go tool sqlc generate
+
+  build:
+    desc: Build from source
+    vars:
+      app: '{{.app | default "server"}}'
+      version:
+        sh: git rev-parse --short HEAD
+    preconditions:
+      - sh: '[ "{{.app}}" = "server" ] || [ "{{.app}}" = "worker" ] || [ "{{.app}}" = "scheduler" ]'
+        msg: "❌ Error: invalid app '{{.app}}', valid options are server, worker, or scheduler."
+    cmds:
+      - |
+        go build -ldflags "-X main.Version={{.version}}" -o bin/{{.app}} ./cmd/{{.app}}
+
+  build-image:
+    desc: Build Docker image for the given app
+    vars:
+      app: '{{.app | default "server"}}'
+      platform: '{{.platform | default "linux/amd64"}}'
+      tag: '{{.tag | default (print .name "-" .app) }}'
+      version:
+        sh: git rev-parse --short HEAD
+    preconditions:
+      - sh: '[ "{{.app}}" = "server" ] || [ "{{.app}}" = "worker" ] || [ "{{.app}}" = "scheduler" ]'
+        msg: "❌ Error: invalid app '{{.app}}', valid options are server, worker, or scheduler."
+    cmds:
+      - |
+        docker build \
+         --build-arg VERSION={{.version}} \
+         --platform {{.platform}} \
+         -f docker/{{.app}}/Dockerfile \
+         -t {{.tag}} \
+         .
+    dir: ./
+
+  push-image:
+    desc: Push Docker image for the given app
+    vars:
+      app: '{{.app | default "server"}}'
+      version:
+        sh: git rev-parse --short HEAD
+    requires:
+      vars:
+        - DOCKER_REGISTRY_URL
+    preconditions:
+      - sh: '[ "{{.app}}" = "server" ] || [ "{{.app}}" = "worker" ] || [ "{{.app}}" = "scheduler" ]'
+        msg: "❌ Error: invalid app '{{.app}}', valid options are server, worker, or scheduler."
+    cmds:
+      - task: build-image
+        vars:
+          {
+            app: "{{.app}}",
+            platform: "linux/amd64",
+            tag: "{{.DOCKER_REGISTRY_URL}}/{{.app}}:{{.version}}",
+            version: "{{.version}}",
+          }
+      - |
+        docker push {{.DOCKER_REGISTRY_URL}}/{{.app}}:{{.version}}
+    dir: ./
+
+  push:
+    desc: Build and push all images
+    requires:
+      vars:
+        - DOCKER_REGISTRY_URL
+    cmds:
+      - task: push-image
+        vars: { app: "server" }
+      - task: push-image
+        vars: { app: "worker" }
+      - task: push-image
+        vars: { app: "scheduler" }
+
+  compose:
+    desc: Docker compose
+    vars:
+      version:
+        sh: git rev-parse --short HEAD
+    cmds:
+      - |
+        docker compose {{.CLI_ARGS}}
+    env:
+      LLAMERO_VERSION: "{{ .version }}"
+    dir: ./
 
   swagger:
     desc: Regenerate Swagger docs
     cmds:
-      - swag init -g cmd/server/main.go --output docs --parseDependency --parseInternal
+      - go tool swag init -g cmd/server/main.go --output docs --parseDependency --parseInternal

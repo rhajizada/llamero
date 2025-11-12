@@ -1346,7 +1346,8 @@ const docTemplate = `{
                     "items": {
                         "type": "object",
                         "additionalProperties": {
-                            "type": "number"
+                            "type": "number",
+                            "format": "float64"
                         }
                     }
                 }

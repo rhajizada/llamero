@@ -1,17 +1,55 @@
+x-app-env: &app-env
+  LLAMERO_SERVER_ADDRESS: ${LLAMERO_SERVER_ADDRESS:-:8080}
+  LLAMERO_SERVER_EXTERNAL_URL: ${LLAMERO_SERVER_EXTERNAL_URL:-http://localhost:8080}
+  LLAMERO_OAUTH_PROVIDER_NAME: ${LLAMERO_OAUTH_PROVIDER_NAME}
+  LLAMERO_OAUTH_CLIENT_ID: ${LLAMERO_OAUTH_CLIENT_ID}
+  LLAMERO_OAUTH_CLIENT_SECRET: ${LLAMERO_OAUTH_CLIENT_SECRET}
+  LLAMERO_OAUTH_AUTHORIZE_URL: ${LLAMERO_OAUTH_AUTHORIZE_URL}
+  LLAMERO_OAUTH_TOKEN_URL: ${LLAMERO_OAUTH_TOKEN_URL}
+  LLAMERO_OAUTH_USERINFO_URL: ${LLAMERO_OAUTH_USERINFO_URL}
+  LLAMERO_OAUTH_REDIRECT_URL: ${LLAMERO_OAUTH_REDIRECT_URL}
+  LLAMERO_OAUTH_SCOPES: ${LLAMERO_OAUTH_SCOPES}
+  LLAMERO_OAUTH_AUDIENCES: ${LLAMERO_OAUTH_AUDIENCES}
+  LLAMERO_JWT_ISSUER: ${LLAMERO_JWT_ISSUER:-llamero}
+  LLAMERO_JWT_AUDIENCE: ${LLAMERO_JWT_AUDIENCE:-llamero-audience}
+  LLAMERO_JWT_PRIVATE_KEY_PATH: ${LLAMERO_JWT_PRIVATE_KEY_PATH:-/app/secrets/jwt_private.pem}
+  LLAMERO_JWT_PUBLIC_KEY_PATH: ${LLAMERO_JWT_PUBLIC_KEY_PATH:-/app/secrets/jwt_public.pem}
+  LLAMERO_JWT_SIGNING_METHOD: ${LLAMERO_JWT_SIGNING_METHOD:-EdDSA}
+  LLAMERO_JWT_TTL: ${LLAMERO_JWT_TTL:-1h}
+  LLAMERO_ROLE_GROUPS: ${LLAMERO_ROLE_GROUPS}
+  LLAMERO_POSTGRES_HOST: postgres
+  LLAMERO_POSTGRES_PORT: ${LLAMERO_POSTGRES_PORT:-5432}
+  LLAMERO_POSTGRES_USER: ${LLAMERO_POSTGRES_USER:-llamero}
+  LLAMERO_POSTGRES_PASSWORD: ${LLAMERO_POSTGRES_PASSWORD:-llamero}
+  LLAMERO_POSTGRES_DBNAME: ${LLAMERO_POSTGRES_DBNAME:-llamero}
+  LLAMERO_POSTGRES_SSLMODE: ${LLAMERO_POSTGRES_SSLMODE:-disable}
+  LLAMERO_MIGRATIONS_DIR: ${LLAMERO_MIGRATIONS_DIR:-data/sql/migrations}
+  LLAMERO_REDIS_ADDR: redis:6379
+  LLAMERO_REDIS_USERNAME: ${LLAMERO_REDIS_USERNAME:-}
+  LLAMERO_REDIS_PASSWORD: ${LLAMERO_REDIS_PASSWORD:-}
+  LLAMERO_REDIS_DB: ${LLAMERO_REDIS_DB:-0}
+  LLAMERO_BACKENDS_FILE: ${LLAMERO_BACKENDS_FILE:-/app/config/backends.yaml}
+  LLAMERO_WORKER_CONCURRENCY: ${LLAMERO_WORKER_CONCURRENCY:-5}
+  LLAMERO_SCHEDULER_PING_SPEC: ${LLAMERO_SCHEDULER_PING_SPEC:-@every 5m}
+
 services:
   postgres:
     image: postgres:18-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${LLAMERO_POSTGRES_DBNAME}
-      POSTGRES_USER: ${LLAMERO_POSTGRES_USER}
-      POSTGRES_PASSWORD: ${LLAMERO_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${LLAMERO_POSTGRES_DBNAME:-llamero}
+      POSTGRES_USER: ${LLAMERO_POSTGRES_USER:-llamero}
+      POSTGRES_PASSWORD: ${LLAMERO_POSTGRES_PASSWORD:-llamero}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
 
   redis:
     image: redis:8
     restart: unless-stopped
+    volumes:
+      - redis-data:/data
     ports:
       - "6379:6379"
 
@@ -19,5 +57,62 @@ services:
     image: ollama/ollama:latest
     restart: unless-stopped
     container_name: ollama
+    environment:
+      OLLAMA_HOST: 0.0.0.0
+    volumes:
+      - ollama-data:/root/.ollama
     ports:
-      - "11434:11434"
+      - "11435:11434"
+
+  server:
+    build:
+      context: .
+      dockerfile: docker/server/Dockerfile
+      args:
+        VERSION: "${LLAMERO_VERSION:-dev}"
+    depends_on:
+      - postgres
+      - redis
+      - ollama
+    environment: *app-env
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config/backends.yaml:/app/config/backends.yaml:ro
+      - ./config/roles.yaml:/app/config/roles.yaml:ro
+      - ./secrets:/app/secrets:ro
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/worker/Dockerfile
+      args:
+        VERSION: "${LLAMERO_VERSION:-dev}"
+    depends_on:
+      - postgres
+      - redis
+    environment: *app-env
+    volumes:
+      - ./config/backends.yaml:/app/config/backends.yaml:ro
+      - ./secrets:/app/secrets:ro
+    restart: unless-stopped
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: docker/scheduler/Dockerfile
+      args:
+        VERSION: "${LLAMERO_VERSION:-dev}"
+    depends_on:
+      - redis
+    environment: *app-env
+    volumes:
+      - ./config/backends.yaml:/app/config/backends.yaml:ro
+      - ./secrets:/app/secrets:ro
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:
+  ollama-data:

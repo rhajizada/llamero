@@ -269,6 +269,7 @@ definitions:
       top_logprobs:
         items:
           additionalProperties:
+            format: float64
             type: number
           type: object
         type: array
