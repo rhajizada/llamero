@@ -103,4 +103,6 @@ tasks:
   swagger:
     desc: Regenerate Swagger docs
     cmds:
-      - go tool swag init -g cmd/server/main.go --output docs --parseDependency --parseInternal
+      - |
+        go tool swag init -g cmd/server/main.go --output docs --parseDependency --parseInternal
+        npx swagger-typescript-api generate -p ./docs/swagger.json -o ./ui/src/api --modular
