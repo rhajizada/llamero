@@ -11,11 +11,13 @@ roles:
       - backends:pullModel
       - backends:pushModel
       - backends:deleteModel
+      - models:list
       - llm:chat
       - llm:embeddings
       - profile:get
   - name: user
     scopes:
+      - models:list
       - llm:chat
       - llm:embeddings
       - profile:get

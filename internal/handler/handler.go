@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/hibiken/asynq"
+
 	"github.com/rhajizada/llamero/internal/auth"
 	"github.com/rhajizada/llamero/internal/config"
 	"github.com/rhajizada/llamero/internal/roles"
@@ -20,11 +22,12 @@ type Handler struct {
 	client *http.Client
 	state  *auth.StateStore
 	issuer *auth.TokenIssuer
+	tasks  *asynq.Client
 	logger *slog.Logger
 }
 
 // New builds a Handler with the provided dependencies.
-func New(cfg *config.ServerConfig, roleStore *roles.Store, svc *service.Service, logger *slog.Logger) (*Handler, error) {
+func New(cfg *config.ServerConfig, roleStore *roles.Store, svc *service.Service, tasks *asynq.Client, logger *slog.Logger) (*Handler, error) {
 	if cfg == nil {
 		return nil, errors.New("config is required")
 	}
@@ -33,6 +36,9 @@ func New(cfg *config.ServerConfig, roleStore *roles.Store, svc *service.Service,
 	}
 	if svc == nil {
 		return nil, errors.New("service is required")
+	}
+	if tasks == nil {
+		return nil, errors.New("task client is required")
 	}
 	if logger == nil {
 		logger = slog.Default()
@@ -50,6 +56,7 @@ func New(cfg *config.ServerConfig, roleStore *roles.Store, svc *service.Service,
 		client: &http.Client{Timeout: 60 * time.Second},
 		state:  auth.NewStateStore(5 * time.Minute),
 		issuer: issuer,
+		tasks:  tasks,
 		logger: logger,
 	}, nil
 }

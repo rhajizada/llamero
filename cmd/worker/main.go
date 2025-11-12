@@ -69,7 +69,8 @@ func main() {
 
 	handler := workers.NewHandler(svc)
 	mux := asynq.NewServeMux()
-	mux.HandleFunc(workers.TypePingBackends, handler.HandlePingBackends)
+	mux.HandleFunc(workers.TypeSyncBackends, handler.HandleSyncBackends)
+	mux.HandleFunc(workers.TypeSyncBackendByID, handler.HandleSyncBackendByID)
 
 	if err := server.Run(mux); err != nil {
 		logger.Error("worker stopped", "err", err)

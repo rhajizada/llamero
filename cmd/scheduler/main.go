@@ -29,7 +29,7 @@ func main() {
 	}
 
 	scheduler := asynq.NewScheduler(connOpt, nil)
-	task, err := workers.NewPingBackendsTask()
+	task, err := workers.NewSyncBackendsTask()
 	if err != nil {
 		logger.Error("create task", "err", err)
 		os.Exit(1)

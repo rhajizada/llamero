@@ -14,6 +14,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/hibiken/asynq"
+
 	_ "github.com/rhajizada/llamero/docs"
 	"github.com/rhajizada/llamero/internal/config"
 	"github.com/rhajizada/llamero/internal/db"
@@ -65,6 +67,14 @@ func main() {
 	}
 	svc := service.New(queries, cacheStore)
 
+	taskClient := asynq.NewClient(&asynq.RedisClientOpt{
+		Addr:     cfg.Store.Addr,
+		Username: cfg.Store.Username,
+		Password: cfg.Store.Password,
+		DB:       cfg.Store.DB,
+	})
+	defer taskClient.Close()
+
 	defs, err := config.LoadBackendDefinitions(cfg.Backends.FilePath)
 	if err != nil {
 		logger.Error("load backends", "err", err)
@@ -74,11 +84,11 @@ func main() {
 		logger.Error("register backends", "err", err)
 		os.Exit(1)
 	}
-	if err := svc.CheckBackends(ctx); err != nil {
+	if err := svc.SyncBackends(ctx); err != nil {
 		logger.Warn("initial backend health check failed", "err", err)
 	}
 
-	srv, err := server.New(cfg, roleStore, svc, logger)
+	srv, err := server.New(cfg, roleStore, svc, taskClient, logger)
 	if err != nil {
 		logger.Error("init server", "err", err)
 		os.Exit(1)

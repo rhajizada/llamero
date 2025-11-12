@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/hibiken/asynq"
+
 	"github.com/rhajizada/llamero/internal/auth"
 	"github.com/rhajizada/llamero/internal/config"
 	"github.com/rhajizada/llamero/internal/handler"
@@ -26,7 +28,7 @@ type Server struct {
 }
 
 // New constructs the handler, router, and server wiring.
-func New(cfg *config.ServerConfig, roleStore *roles.Store, svc *service.Service, logger *slog.Logger) (*Server, error) {
+func New(cfg *config.ServerConfig, roleStore *roles.Store, svc *service.Service, tasks *asynq.Client, logger *slog.Logger) (*Server, error) {
 	if cfg == nil {
 		return nil, errors.New("config is required")
 	}
@@ -36,11 +38,14 @@ func New(cfg *config.ServerConfig, roleStore *roles.Store, svc *service.Service,
 	if svc == nil {
 		return nil, errors.New("service is required")
 	}
+	if tasks == nil {
+		return nil, errors.New("task client is required")
+	}
 	if logger == nil {
 		logger = slog.Default()
 	}
 
-	h, err := handler.New(cfg, roleStore, svc, logger)
+	h, err := handler.New(cfg, roleStore, svc, tasks, logger)
 	if err != nil {
 		return nil, err
 	}

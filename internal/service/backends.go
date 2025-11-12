@@ -30,27 +30,40 @@ func (s *Service) RegisterBackends(ctx context.Context, defs []config.BackendDef
 	}
 
 	desired := make(map[string]struct{}, len(defs))
+	seenIDs := make(map[string]struct{}, len(defs))
+	seenAddresses := make(map[string]string, len(defs))
 	now := time.Now()
 
 	for _, def := range defs {
-		if def.ID == "" || def.Address == "" {
+		id := strings.TrimSpace(def.ID)
+		addr := strings.TrimSpace(def.Address)
+		if id == "" || addr == "" {
 			return fmt.Errorf("backend definition missing id or address")
 		}
+		if _, exists := seenIDs[id]; exists {
+			return fmt.Errorf("duplicate backend id %q", id)
+		}
+		seenIDs[id] = struct{}{}
+		if existingID, exists := seenAddresses[addr]; exists {
+			return fmt.Errorf("backend address %q reused by %s and %s", addr, existingID, id)
+		}
+		seenAddresses[addr] = id
 
-		desired[def.ID] = struct{}{}
+		desired[id] = struct{}{}
 
-		prev, found := existingByID[def.ID]
+		prev, found := existingByID[id]
 		status := prev
 
 		if !found {
 			status.Healthy = true
 			status.LatencyMS = 0
 			status.Models = nil
+			status.LoadedModels = nil
 			status.ModelMeta = nil
 		}
 
-		status.ID = def.ID
-		status.Address = def.Address
+		status.ID = id
+		status.Address = addr
 		status.Tags = append([]string(nil), def.Tags...)
 		status.Weights = map[string]int64{
 			"default": int64(def.Weight),
@@ -74,27 +87,34 @@ func (s *Service) RegisterBackends(ctx context.Context, defs []config.BackendDef
 	return nil
 }
 
-// CheckBackends performs a naive health update for all registered backends.
-func (s *Service) CheckBackends(ctx context.Context) error {
+// SyncBackends refreshes health and model metadata for every backend.
+func (s *Service) SyncBackends(ctx context.Context) error {
 	backends, err := s.store.ListBackends(ctx)
 	if err != nil {
 		return err
 	}
 	for _, backend := range backends {
-		start := time.Now()
-		modelMeta, err := s.pingBackend(ctx, backend.Address)
-		backend.Healthy = err == nil
-		backend.LatencyMS = time.Since(start).Milliseconds()
-		if err == nil {
-			backend.Models = extractModelNames(modelMeta)
-			backend.ModelMeta = modelMeta
-		}
-		backend.UpdatedAt = time.Now()
-		if saveErr := s.store.SaveBackend(ctx, backend, 0); saveErr != nil {
-			return saveErr
+		if err := s.syncBackend(ctx, backend); err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+// SyncBackendByID refreshes health and model metadata for a specific backend.
+func (s *Service) SyncBackendByID(ctx context.Context, backendID string) error {
+	backendID = strings.TrimSpace(backendID)
+	if backendID == "" {
+		return fmt.Errorf("backend id is required")
+	}
+	status, err := s.store.GetBackend(ctx, backendID)
+	if err != nil {
+		return err
+	}
+	if status.ID == "" {
+		return fmt.Errorf("backend %q not found", backendID)
+	}
+	return s.syncBackend(ctx, status)
 }
 
 // ErrNoHealthyBackends indicates that no registered backend can serve a request.
@@ -161,13 +181,14 @@ func (s *Service) ListBackends(ctx context.Context) ([]models.Backend, error) {
 	backends := make([]models.Backend, 0, len(statuses))
 	for _, status := range statuses {
 		backends = append(backends, models.Backend{
-			ID:        status.ID,
-			Address:   status.Address,
-			Healthy:   status.Healthy,
-			LatencyMS: status.LatencyMS,
-			Tags:      append([]string(nil), status.Tags...),
-			Models:    append([]string(nil), status.Models...),
-			UpdatedAt: status.UpdatedAt,
+			ID:           status.ID,
+			Address:      status.Address,
+			Healthy:      status.Healthy,
+			LatencyMS:    status.LatencyMS,
+			Tags:         append([]string(nil), status.Tags...),
+			Models:       append([]string(nil), status.Models...),
+			LoadedModels: append([]string(nil), status.LoadedModels...),
+			UpdatedAt:    status.UpdatedAt,
 		})
 	}
 	return backends, nil
@@ -179,53 +200,88 @@ func (s *Service) selectBackend(ctx context.Context, model string) (redisstore.B
 		return redisstore.BackendStatus{}, err
 	}
 
-	var fallback *redisstore.BackendStatus
+	var (
+		healthy    []redisstore.BackendStatus
+		loadedHits []redisstore.BackendStatus
+		modelHits  []redisstore.BackendStatus
+	)
+
 	for _, status := range statuses {
-		if !status.Healthy || status.Address == "" {
+		if !status.Healthy || strings.TrimSpace(status.Address) == "" {
 			continue
 		}
-		if model == "" || contains(status.Models, model) {
-			return status, nil
+		healthy = append(healthy, status)
+		if model == "" {
+			continue
 		}
-		if fallback == nil {
-			copy := status
-			fallback = &copy
+		if contains(status.LoadedModels, model) {
+			loadedHits = append(loadedHits, status)
+			continue
+		}
+		if contains(status.Models, model) {
+			modelHits = append(modelHits, status)
 		}
 	}
-	if fallback != nil {
-		return *fallback, nil
+
+	if len(healthy) == 0 {
+		return redisstore.BackendStatus{}, ErrNoHealthyBackends
 	}
-	return redisstore.BackendStatus{}, ErrNoHealthyBackends
+	if model == "" {
+		return healthy[0], nil
+	}
+	if len(loadedHits) > 0 {
+		return loadedHits[0], nil
+	}
+	if len(modelHits) > 0 {
+		return modelHits[0], nil
+	}
+	return healthy[0], nil
 }
 
-func (s *Service) pingBackend(ctx context.Context, baseURL string) ([]redisstore.ModelInfo, error) {
+func (s *Service) pingBackend(ctx context.Context, baseURL string) ([]redisstore.ModelInfo, []string, []string, error) {
 	parsed, err := url.Parse(baseURL)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	client := api.NewClient(parsed, http.DefaultClient)
 	return fetchInstalledModels(ctx, client)
 }
 
-func fetchInstalledModels(ctx context.Context, client *api.Client) ([]redisstore.ModelInfo, error) {
+func fetchInstalledModels(ctx context.Context, client *api.Client) ([]redisstore.ModelInfo, []string, []string, error) {
 	metaMap := make(map[string]redisstore.ModelInfo)
+	var available []string
+	var loaded []string
 
 	listCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	resp, err := client.List(listCtx)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	addListModels(metaMap, resp.Models)
+	for _, model := range resp.Models {
+		name := firstModelName(model.Name, model.Model)
+		if name == "" || contains(available, name) {
+			continue
+		}
+		available = append(available, name)
+	}
 
 	runningCtx, cancelRunning := context.WithTimeout(ctx, 5*time.Second)
 	defer cancelRunning()
 	if running, err := client.ListRunning(runningCtx); err == nil {
 		addProcessModels(metaMap, running.Models)
+		for _, model := range running.Models {
+			name := firstModelName(model.Name, model.Model)
+			if name == "" || contains(loaded, name) {
+				continue
+			}
+			loaded = append(loaded, name)
+		}
 	}
 
 	if len(metaMap) == 0 {
-		return nil, nil
+		return nil, available, loaded, nil
 	}
 	out := make([]redisstore.ModelInfo, 0, len(metaMap))
 	for _, info := range metaMap {
@@ -234,7 +290,9 @@ func fetchInstalledModels(ctx context.Context, client *api.Client) ([]redisstore
 	sort.Slice(out, func(i, j int) bool {
 		return out[i].Name < out[j].Name
 	})
-	return out, nil
+	sort.Strings(available)
+	sort.Strings(loaded)
+	return out, available, loaded, nil
 }
 
 func addListModels(registry map[string]redisstore.ModelInfo, models []api.ListModelResponse) {
@@ -293,17 +351,6 @@ func inferOwner(remoteHost string) string {
 	return remoteHost
 }
 
-func extractModelNames(models []redisstore.ModelInfo) []string {
-	if len(models) == 0 {
-		return nil
-	}
-	names := make([]string, 0, len(models))
-	for _, m := range models {
-		names = append(names, m.Name)
-	}
-	return names
-}
-
 func contains(values []string, target string) bool {
 	if target == "" || len(values) == 0 {
 		return false
@@ -314,4 +361,21 @@ func contains(values []string, target string) bool {
 		}
 	}
 	return false
+}
+
+func (s *Service) syncBackend(ctx context.Context, backend redisstore.BackendStatus) error {
+	if strings.TrimSpace(backend.Address) == "" {
+		return fmt.Errorf("backend %q missing address", backend.ID)
+	}
+	start := time.Now()
+	modelMeta, available, loaded, err := s.pingBackend(ctx, backend.Address)
+	backend.Healthy = err == nil
+	backend.LatencyMS = time.Since(start).Milliseconds()
+	if err == nil {
+		backend.Models = available
+		backend.LoadedModels = loaded
+		backend.ModelMeta = modelMeta
+	}
+	backend.UpdatedAt = time.Now()
+	return s.store.SaveBackend(ctx, backend, 0)
 }

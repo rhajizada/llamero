@@ -18,15 +18,16 @@ const (
 
 // BackendStatus represents cached information about an Ollama backend.
 type BackendStatus struct {
-	ID        string           `json:"id"`
-	Address   string           `json:"address"`
-	Healthy   bool             `json:"healthy"`
-	LatencyMS int64            `json:"latency_ms"`
-	Tags      []string         `json:"tags"`
-	Models    []string         `json:"models"`
-	ModelMeta []ModelInfo      `json:"model_meta"`
-	Weights   map[string]int64 `json:"weights"`
-	UpdatedAt time.Time        `json:"updated_at"`
+	ID           string           `json:"id"`
+	Address      string           `json:"address"`
+	Healthy      bool             `json:"healthy"`
+	LatencyMS    int64            `json:"latency_ms"`
+	Tags         []string         `json:"tags"`
+	Models       []string         `json:"models"`
+	LoadedModels []string         `json:"loaded_models"`
+	ModelMeta    []ModelInfo      `json:"model_meta"`
+	Weights      map[string]int64 `json:"weights"`
+	UpdatedAt    time.Time        `json:"updated_at"`
 }
 
 // ModelInfo stores metadata about a single model.
@@ -40,13 +41,14 @@ type ModelInfo struct {
 func (s *Store) SaveBackend(ctx context.Context, status BackendStatus, score float64) error {
 	key := fmt.Sprintf(backendHashKey, status.ID)
 	fields := map[string]any{
-		"address":     status.Address,
-		"healthy":     boolAsInt(status.Healthy),
-		"latency_ms":  status.LatencyMS,
-		"tags":        encodeStringSlice(status.Tags),
-		"models":      encodeStringSlice(status.Models),
-		"models_meta": encodeModelMeta(status.ModelMeta),
-		"updated_at":  status.UpdatedAt.Unix(),
+		"address":       status.Address,
+		"healthy":       boolAsInt(status.Healthy),
+		"latency_ms":    status.LatencyMS,
+		"tags":          encodeStringSlice(status.Tags),
+		"models":        encodeStringSlice(status.Models),
+		"loaded_models": encodeStringSlice(status.LoadedModels),
+		"models_meta":   encodeModelMeta(status.ModelMeta),
+		"updated_at":    status.UpdatedAt.Unix(),
 	}
 	pipe := s.client.TxPipeline()
 	pipe.HSet(ctx, key, fields)
@@ -101,6 +103,11 @@ func (s *Store) ListBackends(ctx context.Context) ([]BackendStatus, error) {
 		}
 		if models, ok := values["models"]; ok && models != "" {
 			status.Models = decodeStringSlice(models)
+		} else if legacy, ok := values["available_models"]; ok && legacy != "" {
+			status.Models = decodeStringSlice(legacy)
+		}
+		if loaded, ok := values["loaded_models"]; ok && loaded != "" {
+			status.LoadedModels = decodeStringSlice(loaded)
 		}
 		if rawMeta, ok := values["models_meta"]; ok && rawMeta != "" {
 			if meta, err := decodeModelMeta(rawMeta); err == nil {
@@ -115,6 +122,50 @@ func (s *Store) ListBackends(ctx context.Context) ([]BackendStatus, error) {
 		statuses = append(statuses, status)
 	}
 	return statuses, nil
+}
+
+// GetBackend loads a single backend status by ID.
+func (s *Store) GetBackend(ctx context.Context, id string) (BackendStatus, error) {
+	key := fmt.Sprintf(backendHashKey, id)
+	values, err := s.client.HGetAll(ctx, key).Result()
+	if err != nil {
+		return BackendStatus{}, err
+	}
+	if len(values) == 0 {
+		return BackendStatus{}, nil
+	}
+	status := BackendStatus{ID: id}
+	if addr, ok := values["address"]; ok {
+		status.Address = addr
+	}
+	if healthy, ok := values["healthy"]; ok && healthy == "1" {
+		status.Healthy = true
+	}
+	if latency, ok := values["latency_ms"]; ok {
+		fmt.Sscan(latency, &status.LatencyMS)
+	}
+	if tags, ok := values["tags"]; ok && tags != "" {
+		status.Tags = decodeStringSlice(tags)
+	}
+	if models, ok := values["models"]; ok && models != "" {
+		status.Models = decodeStringSlice(models)
+	} else if legacy, ok := values["available_models"]; ok && legacy != "" {
+		status.Models = decodeStringSlice(legacy)
+	}
+	if loaded, ok := values["loaded_models"]; ok && loaded != "" {
+		status.LoadedModels = decodeStringSlice(loaded)
+	}
+	if rawMeta, ok := values["models_meta"]; ok && rawMeta != "" {
+		if meta, err := decodeModelMeta(rawMeta); err == nil {
+			status.ModelMeta = meta
+		}
+	}
+	if updated, ok := values["updated_at"]; ok {
+		if ts, err := parseUnix(updated); err == nil {
+			status.UpdatedAt = ts
+		}
+	}
+	return status, nil
 }
 
 func parseUnix(raw string) (time.Time, error) {

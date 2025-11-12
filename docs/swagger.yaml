@@ -10,7 +10,13 @@ definitions:
         type: string
       latency_ms:
         type: integer
+      loaded_models:
+        description: Models currently running in Ollama.
+        items:
+          type: string
+        type: array
       models:
+        description: Installed models available on disk.
         items:
           type: string
         type: array
@@ -21,12 +27,111 @@ definitions:
       updated_at:
         type: string
     type: object
+  BackendCopyModelRequest:
+    properties:
+      destination:
+        type: string
+      source:
+        type: string
+    type: object
+  BackendCreateModelRequest:
+    properties:
+      keep_alive:
+        type: string
+      model:
+        description: Name of the model to create.
+        type: string
+      modelfile:
+        description: Inline Modelfile contents.
+        type: string
+      path:
+        description: Optional path to an existing Modelfile.
+        type: string
+      quantize:
+        description: Quantization target, e.g. "Q4_0".
+        type: string
+    type: object
+  BackendDeleteModelRequest:
+    properties:
+      force:
+        type: boolean
+      model:
+        type: string
+    type: object
+  BackendOperationResponse:
+    properties:
+      detail:
+        type: string
+      digest:
+        type: string
+      model:
+        type: string
+      status:
+        type: string
+    type: object
   BackendProcessList:
     properties:
       models:
         items:
           $ref: '#/definitions/api.ProcessModelResponse'
         type: array
+    type: object
+  BackendPullModelRequest:
+    properties:
+      insecure:
+        type: boolean
+      model:
+        type: string
+      stream:
+        type: boolean
+    type: object
+  BackendPushModelRequest:
+    properties:
+      insecure:
+        type: boolean
+      model:
+        type: string
+      stream:
+        type: boolean
+    type: object
+  BackendShowModelDetails:
+    properties:
+      family:
+        type: string
+      parameter_size:
+        type: string
+      quantization_level:
+        type: string
+    type: object
+  BackendShowModelRequest:
+    properties:
+      model:
+        type: string
+      system:
+        type: string
+    type: object
+  BackendShowModelResponse:
+    properties:
+      details:
+        $ref: '#/definitions/BackendShowModelDetails'
+      license:
+        type: string
+      model:
+        type: string
+      modelfile:
+        type: string
+      modified_at:
+        type: string
+      parameters:
+        additionalProperties: {}
+        type: object
+      template:
+        type: string
+    type: object
+  BackendVersionResponse:
+    properties:
+      version:
+        type: string
     type: object
   ChatCompletionChoice:
     properties:
@@ -285,6 +390,26 @@ definitions:
           type: object
         type: array
     type: object
+  Model:
+    properties:
+      created:
+        type: integer
+      id:
+        type: string
+      object:
+        type: string
+      owned_by:
+        type: string
+    type: object
+  ModelList:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/Model'
+        type: array
+      object:
+        type: string
+    type: object
   ResponseFormatSpec:
     properties:
       type:
@@ -316,9 +441,9 @@ definitions:
     type: object
   User:
     properties:
-      createdAt:
+      created_at:
         type: string
-      displayName:
+      display_name:
         type: string
       email:
         type: string
@@ -328,7 +453,7 @@ definitions:
         type: array
       id:
         type: string
-      lastLoginAt:
+      last_login_at:
         type: string
       provider:
         type: string
@@ -340,7 +465,7 @@ definitions:
         type: array
       sub:
         type: string
-      updatedAt:
+      updated_at:
         type: string
     type: object
   api.ModelDetails:
@@ -407,6 +532,144 @@ paths:
       summary: List registered backends
       tags:
       - Backends
+  /api/backends/{backendID}/copy:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Backend ID
+        in: path
+        name: backendID
+        required: true
+        type: string
+      - description: Copy model payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/BackendCopyModelRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/BackendOperationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Bad Gateway
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Copy a model on the specified backend
+      tags:
+      - Backends
+  /api/backends/{backendID}/create:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Backend ID
+        in: path
+        name: backendID
+        required: true
+        type: string
+      - description: Create model payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/BackendCreateModelRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/BackendOperationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Bad Gateway
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a model on the specified backend
+      tags:
+      - Backends
+  /api/backends/{backendID}/delete:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: Backend ID
+        in: path
+        name: backendID
+        required: true
+        type: string
+      - description: Delete model payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/BackendDeleteModelRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/BackendOperationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Bad Gateway
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete a model from the specified backend
+      tags:
+      - Backends
   /api/backends/{backendID}/ps:
     get:
       description: Forwards the request to the backend's /api/ps endpoint.
@@ -438,6 +701,176 @@ paths:
       security:
       - BearerAuth: []
       summary: List running models on a backend
+      tags:
+      - Backends
+  /api/backends/{backendID}/pull:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Backend ID
+        in: path
+        name: backendID
+        required: true
+        type: string
+      - description: Pull model payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/BackendPullModelRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/BackendOperationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Bad Gateway
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Pull a model on the specified backend
+      tags:
+      - Backends
+  /api/backends/{backendID}/push:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Backend ID
+        in: path
+        name: backendID
+        required: true
+        type: string
+      - description: Push model payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/BackendPushModelRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/BackendOperationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Bad Gateway
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Push a model from the specified backend
+      tags:
+      - Backends
+  /api/backends/{backendID}/show:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Backend ID
+        in: path
+        name: backendID
+        required: true
+        type: string
+      - description: Show model payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/BackendShowModelRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/BackendShowModelResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Bad Gateway
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Show model details on the specified backend
+      tags:
+      - Backends
+  /api/backends/{backendID}/version:
+    get:
+      parameters:
+      - description: Backend ID
+        in: path
+        name: backendID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/BackendVersionResponse'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Bad Gateway
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Retrieve Ollama version of specified backend
       tags:
       - Backends
   /api/chat/completions:
@@ -581,6 +1014,58 @@ paths:
       summary: Proxy embeddings
       tags:
       - LLM
+  /api/models:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ModelList'
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List available models
+      tags:
+      - Models
+  /api/models/{modelID}:
+    get:
+      parameters:
+      - description: Model ID
+        in: path
+        name: modelID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/Model'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get metadata for a single model
+      tags:
+      - Models
   /api/profile:
     get:
       produces:
