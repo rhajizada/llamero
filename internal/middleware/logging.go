@@ -10,8 +10,11 @@ import (
 	"github.com/rhajizada/llamero/internal/requestctx"
 )
 
+const minRouteMatchGroups = 2
+
 type wrappedWriter struct {
 	http.ResponseWriter
+
 	statusCode int
 }
 
@@ -80,7 +83,7 @@ func extractParams(pattern string, r *http.Request) map[string]string {
 
 	params := make(map[string]string, len(matches))
 	for _, match := range matches {
-		if len(match) < 2 {
+		if len(match) < minRouteMatchGroups {
 			continue
 		}
 		name := strings.TrimSpace(match[1])

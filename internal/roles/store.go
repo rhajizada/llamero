@@ -42,7 +42,7 @@ func Load(path string, groupMap map[string][]string) (*Store, error) {
 	}
 
 	var doc document
-	if err := yaml.Unmarshal(raw, &doc); err != nil {
+	if err = yaml.Unmarshal(raw, &doc); err != nil {
 		return nil, fmt.Errorf("parse roles file: %w", err)
 	}
 

@@ -2,12 +2,14 @@ package redisstore
 
 import (
 	"context"
-	"fmt"
+	"errors"
 
 	"github.com/redis/go-redis/v9"
 
 	"github.com/rhajizada/llamero/internal/config"
 )
+
+const redisProtocolVersion = 2
 
 // Store wraps a Redis client for backend state management.
 type Store struct {
@@ -17,14 +19,14 @@ type Store struct {
 // New constructs a Store from the cache configuration.
 func New(cfg *config.RedisConfig) (*Store, error) {
 	if cfg == nil {
-		return nil, fmt.Errorf("redis config is required")
+		return nil, errors.New("redis config is required")
 	}
 	client := redis.NewClient(&redis.Options{
 		Addr:     cfg.Addr,
 		Username: cfg.Username,
 		Password: cfg.Password,
 		DB:       cfg.DB,
-		Protocol: 2,
+		Protocol: redisProtocolVersion,
 	})
 	if err := client.Ping(context.Background()).Err(); err != nil {
 		return nil, err

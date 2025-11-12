@@ -35,13 +35,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	if _, err := scheduler.Register(cfg.Scheduler.BackendPingSpec, task); err != nil {
-		logger.Error("register schedule", "err", err)
+	if _, regErr := scheduler.Register(cfg.Scheduler.BackendPingSpec, task); regErr != nil {
+		logger.Error("register schedule", "err", regErr)
 		os.Exit(1)
 	}
 
-	if err := scheduler.Run(); err != nil {
-		logger.Error("scheduler stopped", "err", err)
+	if runErr := scheduler.Run(); runErr != nil {
+		logger.Error("scheduler stopped", "err", runErr)
 		os.Exit(1)
 	}
 }

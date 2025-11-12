@@ -14,6 +14,11 @@ import (
 	"github.com/rhajizada/llamero/internal/service"
 )
 
+const (
+	defaultHTTPTimeout = 60 * time.Second
+	stateStoreTTL      = 5 * time.Minute
+)
+
 // Handler coordinates OAuth flow endpoints and JWT issuance.
 type Handler struct {
 	cfg    *config.ServerConfig
@@ -27,7 +32,13 @@ type Handler struct {
 }
 
 // New builds a Handler with the provided dependencies.
-func New(cfg *config.ServerConfig, roleStore *roles.Store, svc *service.Service, tasks *asynq.Client, logger *slog.Logger) (*Handler, error) {
+func New(
+	cfg *config.ServerConfig,
+	roleStore *roles.Store,
+	svc *service.Service,
+	tasks *asynq.Client,
+	logger *slog.Logger,
+) (*Handler, error) {
 	if cfg == nil {
 		return nil, errors.New("config is required")
 	}
@@ -53,8 +64,8 @@ func New(cfg *config.ServerConfig, roleStore *roles.Store, svc *service.Service,
 		cfg:    cfg,
 		roles:  roleStore,
 		svc:    svc,
-		client: &http.Client{Timeout: 60 * time.Second},
-		state:  auth.NewStateStore(5 * time.Minute),
+		client: &http.Client{Timeout: defaultHTTPTimeout},
+		state:  auth.NewStateStore(stateStoreTTL),
 		issuer: issuer,
 		tasks:  tasks,
 		logger: logger,

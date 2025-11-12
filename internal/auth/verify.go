@@ -44,6 +44,13 @@ func NewTokenVerifier(cfg config.JWTConfig) (*TokenVerifier, error) {
 
 // Verify parses and validates a token string into Claims.
 func (v *TokenVerifier) Verify(ctx context.Context, tokenString string) (*Claims, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
 	claims := &Claims{}
 	_, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (any, error) {
 		if token.Method.Alg() != v.method.Alg() {
@@ -77,18 +84,21 @@ func loadVerificationKey(cfg config.JWTConfig, method jwt.SigningMethod) (any, e
 
 	switch method {
 	case jwt.SigningMethodEdDSA:
-		priv, err := parseEd25519PrivateKey(privBytes)
-		if err != nil {
-			return nil, err
+		privKey, parseErr := parseEd25519PrivateKey(privBytes)
+		if parseErr != nil {
+			return nil, parseErr
 		}
-		public := priv.Public().(ed25519.PublicKey)
+		public, ok := privKey.Public().(ed25519.PublicKey)
+		if !ok {
+			return nil, errors.New("ed25519 private key missing public component")
+		}
 		return public, nil
 	case jwt.SigningMethodRS256:
-		priv, err := parseRSAPrivateKey(privBytes)
-		if err != nil {
-			return nil, err
+		privKey, parseErr := parseRSAPrivateKey(privBytes)
+		if parseErr != nil {
+			return nil, parseErr
 		}
-		return &priv.PublicKey, nil
+		return &privKey.PublicKey, nil
 	default:
 		return nil, fmt.Errorf("unsupported signing method %s", method.Alg())
 	}
@@ -112,16 +122,17 @@ func parsePublicKey(raw []byte, method jwt.SigningMethod) (any, error) {
 		}
 		return pub, nil
 	case jwt.SigningMethodRS256:
-		key, err := x509.ParsePKIXPublicKey(block.Bytes)
-		if err == nil {
+		key, parseErr := x509.ParsePKIXPublicKey(block.Bytes)
+		if parseErr == nil {
 			if rsaPub, ok := key.(*rsa.PublicKey); ok {
 				return rsaPub, nil
 			}
 		}
-		if rsaPub, err := x509.ParsePKCS1PublicKey(block.Bytes); err == nil {
+		rsaPub, pkcs1Err := x509.ParsePKCS1PublicKey(block.Bytes)
+		if pkcs1Err == nil {
 			return rsaPub, nil
 		}
-		return nil, fmt.Errorf("parse rsa public key: %w", err)
+		return nil, fmt.Errorf("parse rsa public key: %w", pkcs1Err)
 	default:
 		return nil, fmt.Errorf("unsupported signing method %s", method.Alg())
 	}

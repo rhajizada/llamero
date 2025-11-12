@@ -160,13 +160,13 @@ func (h *Handler) exchangeCode(ctx context.Context, code string) (*tokenResponse
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode >= 400 {
+	if resp.StatusCode >= http.StatusBadRequest {
 		return nil, fmt.Errorf("token endpoint returned %s", resp.Status)
 	}
 
 	var tr tokenResponse
-	if err := json.NewDecoder(resp.Body).Decode(&tr); err != nil {
-		return nil, err
+	if decodeErr := json.NewDecoder(resp.Body).Decode(&tr); decodeErr != nil {
+		return nil, decodeErr
 	}
 	return &tr, nil
 }
@@ -184,13 +184,13 @@ func (h *Handler) fetchUserInfo(ctx context.Context, accessToken string) (*userI
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode >= 400 {
+	if resp.StatusCode >= http.StatusBadRequest {
 		return nil, fmt.Errorf("userinfo endpoint returned %s", resp.Status)
 	}
 
 	var raw map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
-		return nil, err
+	if decodeErr := json.NewDecoder(resp.Body).Decode(&raw); decodeErr != nil {
+		return nil, decodeErr
 	}
 
 	info := &userInfo{
@@ -231,7 +231,7 @@ func (h *Handler) determineRole(info *userInfo) (string, []string, error) {
 // @Success 200 {object} models.User
 // @Failure 401 {object} map[string]string
 // @Failure 500 {object} map[string]string
-// @Router /api/profile [get]
+// @Router /api/profile [get].
 func (h *Handler) Profile(w http.ResponseWriter, r *http.Request) {
 	claims, ok := middleware.ClaimsFromContext(r.Context())
 	if !ok {

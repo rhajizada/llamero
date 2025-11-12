@@ -9,6 +9,8 @@ import (
 	"github.com/rhajizada/llamero/internal/auth"
 )
 
+const bearerTokenParts = 2
+
 // Authz applies JWT verification and scope enforcement to HTTP handlers.
 type Authz struct {
 	verifier *auth.TokenVerifier
@@ -59,8 +61,8 @@ func bearerToken(header string) string {
 	if header == "" {
 		return ""
 	}
-	parts := strings.SplitN(header, " ", 2)
-	if len(parts) != 2 {
+	parts := strings.SplitN(header, " ", bearerTokenParts)
+	if len(parts) != bearerTokenParts {
 		return ""
 	}
 	if !strings.EqualFold(parts[0], "bearer") {

@@ -3,23 +3,23 @@ package db
 import (
 	"context"
 	"database/sql"
-	"fmt"
+	"errors"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	_ "github.com/jackc/pgx/v5/stdlib"
+	_ "github.com/jackc/pgx/v5/stdlib" // pgx stdlib driver
 	"github.com/pressly/goose/v3"
 )
 
 // Connect creates a pgx pool using the provided URL.
 func Connect(ctx context.Context, url string) (*pgxpool.Pool, error) {
 	if url == "" {
-		return nil, fmt.Errorf("database url cannot be empty")
+		return nil, errors.New("database url cannot be empty")
 	}
 	pool, err := pgxpool.New(ctx, url)
 	if err != nil {
 		return nil, err
 	}
-	if err := pool.Ping(ctx); err != nil {
+	if err = pool.Ping(ctx); err != nil {
 		pool.Close()
 		return nil, err
 	}
@@ -29,7 +29,7 @@ func Connect(ctx context.Context, url string) (*pgxpool.Pool, error) {
 // Migrate applies goose migrations located at dir using the provided URL.
 func Migrate(ctx context.Context, url, dir string) error {
 	if url == "" {
-		return fmt.Errorf("database url cannot be empty")
+		return errors.New("database url cannot be empty")
 	}
 	sqlDB, err := sql.Open("pgx", url)
 	if err != nil {
@@ -38,7 +38,7 @@ func Migrate(ctx context.Context, url, dir string) error {
 	defer sqlDB.Close()
 
 	goose.SetBaseFS(nil)
-	if err := goose.SetDialect("postgres"); err != nil {
+	if err = goose.SetDialect("postgres"); err != nil {
 		return err
 	}
 

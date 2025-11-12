@@ -25,18 +25,6 @@ var (
 
 const maxProxyBodyBytes int64 = 5 << 20 // 5 MiB
 
-var hopHeaders = []string{
-	"Connection",
-	"Proxy-Connection",
-	"Keep-Alive",
-	"Proxy-Authenticate",
-	"Proxy-Authorization",
-	"TE",
-	"Trailer",
-	"Transfer-Encoding",
-	"Upgrade",
-}
-
 var errProxyBodyTooLarge = errors.New("request body too large")
 
 // ChatCompletionProxyRequest represents the subset of LLM fields that Llamero inspects.
@@ -66,7 +54,7 @@ type CompletionProxyRequest struct {
 // @Failure 413 {object} map[string]string
 // @Failure 502 {object} map[string]string
 // @Failure 503 {object} map[string]string
-// @Router /api/chat/completions [post]
+// @Router /api/chat/completions [post].
 func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) {
 	body, err := h.readProxyPayload(r)
 	if err != nil {
@@ -75,7 +63,7 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 	}
 
 	var payload ChatCompletionProxyRequest
-	if err := json.Unmarshal(body, &payload); err != nil {
+	if decodeErr := json.Unmarshal(body, &payload); decodeErr != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON payload")
 		return
 	}
@@ -99,7 +87,7 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 // @Failure 413 {object} map[string]string
 // @Failure 502 {object} map[string]string
 // @Failure 503 {object} map[string]string
-// @Router /api/embeddings [post]
+// @Router /api/embeddings [post].
 func (h *Handler) HandleEmbeddings(w http.ResponseWriter, r *http.Request) {
 	body, err := h.readProxyPayload(r)
 	if err != nil {
@@ -108,7 +96,7 @@ func (h *Handler) HandleEmbeddings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var payload EmbeddingsProxyRequest
-	if err := json.Unmarshal(body, &payload); err != nil {
+	if decodeErr := json.Unmarshal(body, &payload); decodeErr != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON payload")
 		return
 	}
@@ -132,7 +120,7 @@ func (h *Handler) HandleEmbeddings(w http.ResponseWriter, r *http.Request) {
 // @Failure 413 {object} map[string]string
 // @Failure 502 {object} map[string]string
 // @Failure 503 {object} map[string]string
-// @Router /api/completions [post]
+// @Router /api/completions [post].
 func (h *Handler) HandleCompletions(w http.ResponseWriter, r *http.Request) {
 	body, err := h.readProxyPayload(r)
 	if err != nil {
@@ -141,7 +129,7 @@ func (h *Handler) HandleCompletions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var payload CompletionProxyRequest
-	if err := json.Unmarshal(body, &payload); err != nil {
+	if decodeErr := json.Unmarshal(body, &payload); decodeErr != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON payload")
 		return
 	}
@@ -196,8 +184,8 @@ func (h *Handler) forwardLLMRequest(w http.ResponseWriter, r *http.Request, mode
 	copyHeaders(w.Header(), resp.Header)
 	removeHopHeaders(w.Header())
 	w.WriteHeader(resp.StatusCode)
-	if _, err := io.Copy(w, resp.Body); err != nil {
-		h.logger.ErrorContext(req.Context(), "write proxied body", "err", err)
+	if _, copyErr := io.Copy(w, resp.Body); copyErr != nil {
+		h.logger.ErrorContext(req.Context(), "write proxied body", "err", copyErr)
 	}
 }
 
@@ -260,8 +248,8 @@ func normalizeLLMPath(path string) string {
 	if path == "" {
 		return "/v1"
 	}
-	if strings.HasPrefix(path, "/api/") {
-		return "/v1/" + strings.TrimPrefix(path, "/api/")
+	if after, ok := strings.CutPrefix(path, "/api/"); ok {
+		return "/v1/" + after
 	}
 	if strings.HasPrefix(path, "/v1/") || path == "/v1" {
 		return path
@@ -281,7 +269,17 @@ func copyHeaders(dst, src http.Header) {
 }
 
 func removeHopHeaders(h http.Header) {
-	for _, header := range hopHeaders {
+	for _, header := range []string{
+		"Connection",
+		"Proxy-Connection",
+		"Keep-Alive",
+		"Proxy-Authenticate",
+		"Proxy-Authorization",
+		"TE",
+		"Trailer",
+		"Transfer-Encoding",
+		"Upgrade",
+	} {
 		h.Del(header)
 	}
 }

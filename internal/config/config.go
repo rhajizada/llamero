@@ -11,9 +11,14 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const (
+	roleMappingSeparator = "="
+	roleMappingParts     = 2
+)
+
 // ServerConfig holds every runtime option for the HTTP server.
 type ServerConfig struct {
-	Address     string `env:"LLAMERO_SERVER_ADDRESS" envDefault:":8080"`
+	Address     string `env:"LLAMERO_SERVER_ADDRESS"      envDefault:":8080"`
 	ExternalURL string `env:"LLAMERO_SERVER_EXTERNAL_URL" envDefault:"http://localhost:8080"`
 	OAuth       OAuthConfig
 	JWT         JWTConfig
@@ -27,25 +32,25 @@ type ServerConfig struct {
 
 // OAuthConfig captures the OAuth2 provider integration points.
 type OAuthConfig struct {
-	ProviderName string   `env:"LLAMERO_OAUTH_PROVIDER_NAME" envDefault:"oauth"`
+	ProviderName string   `env:"LLAMERO_OAUTH_PROVIDER_NAME"          envDefault:"oauth"`
 	ClientID     string   `env:"LLAMERO_OAUTH_CLIENT_ID,notEmpty"`
 	ClientSecret string   `env:"LLAMERO_OAUTH_CLIENT_SECRET,notEmpty"`
 	AuthorizeURL string   `env:"LLAMERO_OAUTH_AUTHORIZE_URL,notEmpty"`
 	TokenURL     string   `env:"LLAMERO_OAUTH_TOKEN_URL,notEmpty"`
 	UserInfoURL  string   `env:"LLAMERO_OAUTH_USERINFO_URL,notEmpty"`
 	RedirectURL  string   `env:"LLAMERO_OAUTH_REDIRECT_URL,notEmpty"`
-	Scopes       []string `env:"LLAMERO_OAUTH_SCOPES" envSeparator:"," envDefault:"openid,email,profile"`
-	Audiences    []string `env:"LLAMERO_OAUTH_AUDIENCES" envSeparator:","`
+	Scopes       []string `env:"LLAMERO_OAUTH_SCOPES"                 envDefault:"openid,email,profile" envSeparator:","`
+	Audiences    []string `env:"LLAMERO_OAUTH_AUDIENCES"                                                envSeparator:","`
 }
 
 // JWTConfig defines how internal tokens are signed.
 type JWTConfig struct {
-	Issuer         string        `env:"LLAMERO_JWT_ISSUER" envDefault:"llamero"`
-	Audience       string        `env:"LLAMERO_JWT_AUDIENCE" envDefault:"ollama-clients"`
+	Issuer         string        `env:"LLAMERO_JWT_ISSUER"                    envDefault:"llamero"`
+	Audience       string        `env:"LLAMERO_JWT_AUDIENCE"                  envDefault:"ollama-clients"`
 	PrivateKeyPath string        `env:"LLAMERO_JWT_PRIVATE_KEY_PATH,notEmpty"`
 	PublicKeyPath  string        `env:"LLAMERO_JWT_PUBLIC_KEY_PATH"`
-	SigningMethod  string        `env:"LLAMERO_JWT_SIGNING_METHOD" envDefault:"EdDSA"`
-	TTL            time.Duration `env:"LLAMERO_JWT_TTL" envDefault:"1h"`
+	SigningMethod  string        `env:"LLAMERO_JWT_SIGNING_METHOD"            envDefault:"EdDSA"`
+	TTL            time.Duration `env:"LLAMERO_JWT_TTL"                       envDefault:"1h"`
 }
 
 // RoleMappingConfig maps IdP group names to internal role names defined in roles.yaml.
@@ -65,7 +70,7 @@ type RedisConfig struct {
 	Addr     string `env:"LLAMERO_REDIS_ADDR,notEmpty"`
 	Username string `env:"LLAMERO_REDIS_USERNAME"`
 	Password string `env:"LLAMERO_REDIS_PASSWORD"`
-	DB       int    `env:"LLAMERO_REDIS_DB" envDefault:"0"`
+	DB       int    `env:"LLAMERO_REDIS_DB"            envDefault:"0"`
 }
 
 // BackendsConfig controls static backend definitions.
@@ -94,11 +99,11 @@ type BackendDefinition struct {
 // PostgresConfig stores connection details for Postgres.
 type PostgresConfig struct {
 	Host     string `env:"LLAMERO_POSTGRES_HOST,notEmpty"`
-	Port     int    `env:"LLAMERO_POSTGRES_PORT" envDefault:"5432"`
+	Port     int    `env:"LLAMERO_POSTGRES_PORT"              envDefault:"5432"`
 	User     string `env:"LLAMERO_POSTGRES_USER,notEmpty"`
 	Password string `env:"LLAMERO_POSTGRES_PASSWORD,notEmpty"`
 	DBName   string `env:"LLAMERO_POSTGRES_DBNAME,notEmpty"`
-	SSLMode  string `env:"LLAMERO_POSTGRES_SSLMODE" envDefault:"disable"`
+	SSLMode  string `env:"LLAMERO_POSTGRES_SSLMODE"           envDefault:"disable"`
 }
 
 // LoadServer populates ServerConfig from environment variables.
@@ -121,15 +126,15 @@ func parseRoleGroups(value string) (map[string][]string, error) {
 		return result, nil
 	}
 
-	items := strings.Split(value, ";")
-	for _, item := range items {
+	items := strings.SplitSeq(value, ";")
+	for item := range items {
 		item = strings.TrimSpace(item)
 		if item == "" {
 			continue
 		}
 
-		parts := strings.SplitN(item, "=", 2)
-		if len(parts) != 2 {
+		parts := strings.SplitN(item, roleMappingSeparator, roleMappingParts)
+		if len(parts) != roleMappingParts {
 			return nil, fmt.Errorf("invalid role mapping entry %q", item)
 		}
 
@@ -185,7 +190,7 @@ func LoadBackendDefinitions(path string) ([]BackendDefinition, error) {
 	var doc struct {
 		Backends []BackendDefinition `yaml:"backends"`
 	}
-	if err := yaml.Unmarshal(raw, &doc); err != nil {
+	if err = yaml.Unmarshal(raw, &doc); err != nil {
 		return nil, fmt.Errorf("parse backends file: %w", err)
 	}
 	return doc.Backends, nil

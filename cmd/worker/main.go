@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/hibiken/asynq"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/rhajizada/llamero/internal/config"
 	"github.com/rhajizada/llamero/internal/db"
@@ -22,32 +24,69 @@ func main() {
 	logger := logging.New()
 	slog.SetDefault(logger)
 
+	if err := run(); err != nil {
+		logger.Error("worker failed", "err", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	cfg, err := config.LoadServer()
 	if err != nil {
-		logger.Error("load config", "err", err)
-		os.Exit(1)
+		return fmt.Errorf("load config: %w", err)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	dsn := cfg.Database.Postgres.DSN()
-	if err := db.Migrate(ctx, dsn, cfg.Database.MigrationsDir); err != nil {
-		logger.Error("migrate database", "err", err)
-		os.Exit(1)
+	env, err := newWorkerEnvironment(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer env.Close()
+
+	handler := workers.NewHandler(env.service)
+	env.mux.HandleFunc(workers.TypeSyncBackends, handler.HandleSyncBackends)
+	env.mux.HandleFunc(workers.TypeSyncBackendByID, handler.HandleSyncBackendByID)
+
+	return env.server.Run(env.mux)
+}
+
+type workerEnvironment struct {
+	server  *asynq.Server
+	mux     *asynq.ServeMux
+	service *service.Service
+	closers []func()
+}
+
+func (e *workerEnvironment) Close() {
+	for i := len(e.closers) - 1; i >= 0; i-- {
+		if e.closers[i] != nil {
+			e.closers[i]()
+		}
+	}
+}
+
+func (e *workerEnvironment) addCloser(fn func()) {
+	if fn == nil {
+		return
+	}
+	e.closers = append(e.closers, fn)
+}
+
+func newWorkerEnvironment(ctx context.Context, cfg *config.ServerConfig) (*workerEnvironment, error) {
+	pool, err := prepareDatabase(ctx, cfg)
+	if err != nil {
+		return nil, err
 	}
 
-	pool, err := db.Connect(ctx, dsn)
-	if err != nil {
-		logger.Error("connect database", "err", err)
-		os.Exit(1)
-	}
-	defer pool.Close()
+	env := &workerEnvironment{}
+	env.addCloser(pool.Close)
 
 	cacheStore, err := redisstore.New(&cfg.Store)
 	if err != nil {
-		logger.Error("connect redis", "err", err)
-		os.Exit(1)
+		env.Close()
+		return nil, fmt.Errorf("connect redis: %w", err)
 	}
 
 	queries := repository.New(pool)
@@ -67,13 +106,20 @@ func main() {
 		},
 	})
 
-	handler := workers.NewHandler(svc)
-	mux := asynq.NewServeMux()
-	mux.HandleFunc(workers.TypeSyncBackends, handler.HandleSyncBackends)
-	mux.HandleFunc(workers.TypeSyncBackendByID, handler.HandleSyncBackendByID)
+	env.server = server
+	env.mux = asynq.NewServeMux()
+	env.service = svc
+	return env, nil
+}
 
-	if err := server.Run(mux); err != nil {
-		logger.Error("worker stopped", "err", err)
-		os.Exit(1)
+func prepareDatabase(ctx context.Context, cfg *config.ServerConfig) (*pgxpool.Pool, error) {
+	dsn := cfg.Database.Postgres.DSN()
+	if err := db.Migrate(ctx, dsn, cfg.Database.MigrationsDir); err != nil {
+		return nil, fmt.Errorf("migrate database: %w", err)
 	}
+	pool, err := db.Connect(ctx, dsn)
+	if err != nil {
+		return nil, fmt.Errorf("connect database: %w", err)
+	}
+	return pool, nil
 }

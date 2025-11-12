@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"net/http"
 	"sort"
 	"strings"
 	"time"
@@ -29,7 +30,7 @@ func (s *Service) ListModels(ctx context.Context) (models.ModelList, error) {
 func (s *Service) GetModel(ctx context.Context, id string) (models.Model, error) {
 	id = strings.TrimSpace(id)
 	if id == "" {
-		return models.Model{}, &Error{Code: 400, Message: "model id is required"}
+		return models.Model{}, &Error{Code: http.StatusBadRequest, Message: "model id is required"}
 	}
 	modelMap, err := s.collectModels(ctx)
 	if err != nil {
@@ -38,20 +39,20 @@ func (s *Service) GetModel(ctx context.Context, id string) (models.Model, error)
 	if model, ok := modelMap[id]; ok {
 		return model, nil
 	}
-	return models.Model{}, &Error{Code: 404, Message: "model not found"}
+	return models.Model{}, &Error{Code: http.StatusNotFound, Message: "model not found"}
 }
 
 func (s *Service) collectModels(ctx context.Context) (map[string]models.Model, error) {
 	statuses, err := s.store.ListBackends(ctx)
 	if err != nil {
-		return nil, &Error{Code: 500, Message: "failed to load models", Err: err}
+		return nil, &Error{Code: http.StatusInternalServerError, Message: "failed to load models", Err: err}
 	}
 	modelMap := make(map[string]models.Model)
 	for _, status := range statuses {
 		now := status.UpdatedAt.Unix()
 		owned := status.ID
 		if owned == "" {
-			owned = "library"
+			owned = defaultModelOwner
 		}
 		if len(status.ModelMeta) == 0 {
 			for _, name := range status.Models {
@@ -94,7 +95,7 @@ func addModel(dest map[string]models.Model, name string, created int64, ownedBy 
 		created = timeNowUnix()
 	}
 	if strings.TrimSpace(ownedBy) == "" {
-		ownedBy = "library"
+		ownedBy = defaultModelOwner
 	}
 	dest[name] = models.Model{
 		ID:      name,
@@ -104,4 +105,4 @@ func addModel(dest map[string]models.Model, name string, created int64, ownedBy 
 	}
 }
 
-var timeNowUnix = func() int64 { return time.Now().Unix() }
+func timeNowUnix() int64 { return time.Now().Unix() }

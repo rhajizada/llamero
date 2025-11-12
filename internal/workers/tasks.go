@@ -2,7 +2,7 @@ package workers
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"strings"
 
 	"github.com/hibiken/asynq"
@@ -27,7 +27,7 @@ func NewSyncBackendsTask() (*asynq.Task, error) {
 func NewSyncBackendByIDTask(backendID string) (*asynq.Task, error) {
 	backendID = strings.TrimSpace(backendID)
 	if backendID == "" {
-		return nil, fmt.Errorf("backend id is required")
+		return nil, errors.New("backend id is required")
 	}
 	payload, err := json.Marshal(SyncBackendPayload{BackendID: backendID})
 	if err != nil {

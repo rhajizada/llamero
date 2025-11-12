@@ -9,12 +9,14 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/hibiken/asynq"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	_ "github.com/rhajizada/llamero/docs"
 	"github.com/rhajizada/llamero/internal/config"
@@ -31,41 +33,91 @@ func main() {
 	logger := logging.New()
 	slog.SetDefault(logger)
 
+	if err := run(logger); err != nil {
+		logger.Error("server failed", "err", err)
+		os.Exit(1)
+	}
+}
+
+func run(logger *slog.Logger) error {
 	cfg, err := config.LoadServer()
 	if err != nil {
-		logger.Error("load config", "err", err)
-		os.Exit(1)
+		return fmt.Errorf("load config: %w", err)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	env, err := newServerEnvironment(ctx, cfg, logger)
+	if err != nil {
+		return err
+	}
+	defer env.Close()
+
+	if syncErr := env.service.SyncBackends(ctx); syncErr != nil {
+		logger.Warn("initial backend health check failed", "err", syncErr)
+	}
+
+	return env.server.Run(ctx)
+}
+
+type serverEnvironment struct {
+	service *service.Service
+	server  *server.Server
+	closers []func()
+}
+
+func (e *serverEnvironment) Close() {
+	for i := len(e.closers) - 1; i >= 0; i-- {
+		if e.closers[i] != nil {
+			e.closers[i]()
+		}
+	}
+}
+
+func (e *serverEnvironment) addCloser(fn func()) {
+	if fn == nil {
+		return
+	}
+	e.closers = append(e.closers, fn)
+}
+
+func newServerEnvironment(
+	ctx context.Context,
+	cfg *config.ServerConfig,
+	logger *slog.Logger,
+) (*serverEnvironment, error) {
 	roleStore, err := roles.Load(roles.DefaultPath, cfg.Roles.Groups)
 	if err != nil {
-		logger.Error("load roles", "err", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("load roles: %w", err)
 	}
 
-	dsn := cfg.Database.Postgres.DSN()
-	if err := db.Migrate(ctx, dsn, cfg.Database.MigrationsDir); err != nil {
-		logger.Error("migrate database", "err", err)
-		os.Exit(1)
-	}
-
-	pool, err := db.Connect(ctx, dsn)
+	pool, err := setupDatabase(ctx, cfg)
 	if err != nil {
-		logger.Error("connect database", "err", err)
-		os.Exit(1)
+		return nil, err
 	}
-	defer pool.Close()
 
-	queries := repository.New(pool)
+	env := &serverEnvironment{}
+	env.addCloser(pool.Close)
+
 	cacheStore, err := redisstore.New(&cfg.Store)
 	if err != nil {
-		logger.Error("connect redis", "err", err)
-		os.Exit(1)
+		env.Close()
+		return nil, fmt.Errorf("connect redis: %w", err)
 	}
+
+	queries := repository.New(pool)
 	svc := service.New(queries, cacheStore)
+
+	defs, err := config.LoadBackendDefinitions(cfg.Backends.FilePath)
+	if err != nil {
+		env.Close()
+		return nil, fmt.Errorf("load backends: %w", err)
+	}
+	if registerErr := svc.RegisterBackends(ctx, defs); registerErr != nil {
+		env.Close()
+		return nil, fmt.Errorf("register backends: %w", registerErr)
+	}
 
 	taskClient := asynq.NewClient(&asynq.RedisClientOpt{
 		Addr:     cfg.Store.Addr,
@@ -73,29 +125,31 @@ func main() {
 		Password: cfg.Store.Password,
 		DB:       cfg.Store.DB,
 	})
-	defer taskClient.Close()
-
-	defs, err := config.LoadBackendDefinitions(cfg.Backends.FilePath)
-	if err != nil {
-		logger.Error("load backends", "err", err)
-		os.Exit(1)
-	}
-	if err := svc.RegisterBackends(ctx, defs); err != nil {
-		logger.Error("register backends", "err", err)
-		os.Exit(1)
-	}
-	if err := svc.SyncBackends(ctx); err != nil {
-		logger.Warn("initial backend health check failed", "err", err)
-	}
+	env.addCloser(func() {
+		if closeErr := taskClient.Close(); closeErr != nil {
+			logger.Error("close task client", "err", closeErr)
+		}
+	})
 
 	srv, err := server.New(cfg, roleStore, svc, taskClient, logger)
 	if err != nil {
-		logger.Error("init server", "err", err)
-		os.Exit(1)
+		env.Close()
+		return nil, fmt.Errorf("init server: %w", err)
 	}
 
-	if err := srv.Run(ctx); err != nil {
-		logger.Error("server error", "err", err)
-		os.Exit(1)
+	env.service = svc
+	env.server = srv
+	return env, nil
+}
+
+func setupDatabase(ctx context.Context, cfg *config.ServerConfig) (*pgxpool.Pool, error) {
+	dsn := cfg.Database.Postgres.DSN()
+	if err := db.Migrate(ctx, dsn, cfg.Database.MigrationsDir); err != nil {
+		return nil, fmt.Errorf("migrate database: %w", err)
 	}
+	pool, err := db.Connect(ctx, dsn)
+	if err != nil {
+		return nil, fmt.Errorf("connect database: %w", err)
+	}
+	return pool, nil
 }

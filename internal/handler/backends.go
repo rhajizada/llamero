@@ -27,14 +27,14 @@ var (
 	_ models.BackendVersionResponse
 )
 
-// ListBackends godoc
+// HandleListBackends godoc
 // @Summary List registered backends
 // @Tags Backends
 // @Produce json
 // @Security BearerAuth
 // @Success 200 {array} models.Backend
 // @Failure 500 {object} map[string]string
-// @Router /api/backends [get]
+// @Router /api/backends [get].
 func (h *Handler) HandleListBackends(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	backends, err := h.svc.ListBackends(ctx)
@@ -55,7 +55,7 @@ func (h *Handler) HandleListBackends(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} models.BackendProcessList
 // @Failure 404 {object} map[string]string
 // @Failure 502 {object} map[string]string
-// @Router /api/backends/{backendID}/ps [get]
+// @Router /api/backends/{backendID}/ps [get].
 func (h *Handler) HandleBackendProcesses(w http.ResponseWriter, r *http.Request) {
 	h.handleBackendGET(w, r, "/api/ps")
 }
@@ -72,7 +72,7 @@ func (h *Handler) HandleBackendProcesses(w http.ResponseWriter, r *http.Request)
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Failure 502 {object} map[string]string
-// @Router /api/backends/{backendID}/create [post]
+// @Router /api/backends/{backendID}/create [post].
 func (h *Handler) HandleBackendCreate(w http.ResponseWriter, r *http.Request) {
 	h.handleBackendProxyWithBody(w, r, http.MethodPost, "/api/create", true)
 }
@@ -89,7 +89,7 @@ func (h *Handler) HandleBackendCreate(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Failure 502 {object} map[string]string
-// @Router /api/backends/{backendID}/copy [post]
+// @Router /api/backends/{backendID}/copy [post].
 func (h *Handler) HandleBackendCopy(w http.ResponseWriter, r *http.Request) {
 	h.handleBackendProxyWithBody(w, r, http.MethodPost, "/api/copy", true)
 }
@@ -106,7 +106,7 @@ func (h *Handler) HandleBackendCopy(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Failure 502 {object} map[string]string
-// @Router /api/backends/{backendID}/pull [post]
+// @Router /api/backends/{backendID}/pull [post].
 func (h *Handler) HandleBackendPull(w http.ResponseWriter, r *http.Request) {
 	h.handleBackendProxyWithBody(w, r, http.MethodPost, "/api/pull", true)
 }
@@ -123,7 +123,7 @@ func (h *Handler) HandleBackendPull(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Failure 502 {object} map[string]string
-// @Router /api/backends/{backendID}/push [post]
+// @Router /api/backends/{backendID}/push [post].
 func (h *Handler) HandleBackendPush(w http.ResponseWriter, r *http.Request) {
 	h.handleBackendProxyWithBody(w, r, http.MethodPost, "/api/push", true)
 }
@@ -140,7 +140,7 @@ func (h *Handler) HandleBackendPush(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Failure 502 {object} map[string]string
-// @Router /api/backends/{backendID}/delete [delete]
+// @Router /api/backends/{backendID}/delete [delete].
 func (h *Handler) HandleBackendDelete(w http.ResponseWriter, r *http.Request) {
 	h.handleBackendProxyWithBody(w, r, http.MethodDelete, "/api/delete", true)
 }
@@ -157,7 +157,7 @@ func (h *Handler) HandleBackendDelete(w http.ResponseWriter, r *http.Request) {
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Failure 502 {object} map[string]string
-// @Router /api/backends/{backendID}/show [post]
+// @Router /api/backends/{backendID}/show [post].
 func (h *Handler) HandleBackendShow(w http.ResponseWriter, r *http.Request) {
 	h.handleBackendProxyWithBody(w, r, http.MethodPost, "/api/show", false)
 }
@@ -171,12 +171,17 @@ func (h *Handler) HandleBackendShow(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {object} models.BackendVersionResponse
 // @Failure 404 {object} map[string]string
 // @Failure 502 {object} map[string]string
-// @Router /api/backends/{backendID}/version [get]
+// @Router /api/backends/{backendID}/version [get].
 func (h *Handler) HandleBackendVersion(w http.ResponseWriter, r *http.Request) {
 	h.handleBackendGET(w, r, "/api/version")
 }
 
-func (h *Handler) handleBackendProxyWithBody(w http.ResponseWriter, r *http.Request, method, backendPath string, sync bool) {
+func (h *Handler) handleBackendProxyWithBody(
+	w http.ResponseWriter,
+	r *http.Request,
+	method, backendPath string,
+	sync bool,
+) {
 	backendID := strings.TrimSpace(r.PathValue("backendID"))
 	if backendID == "" {
 		writeError(w, http.StatusNotFound, "backend not found")
@@ -203,7 +208,16 @@ func (h *Handler) handleBackendProxyWithBody(w http.ResponseWriter, r *http.Requ
 
 	resp, err := h.proxyBackendWithBody(req, route, method, backendPath, body)
 	if err != nil {
-		h.logger.ErrorContext(req.Context(), "proxy backend mutation", "backend_id", backendID, "path", backendPath, "err", err)
+		h.logger.ErrorContext(
+			req.Context(),
+			"proxy backend mutation",
+			"backend_id",
+			backendID,
+			"path",
+			backendPath,
+			"err",
+			err,
+		)
 		writeError(w, http.StatusBadGateway, "backend request failed")
 		return
 	}
@@ -212,8 +226,8 @@ func (h *Handler) handleBackendProxyWithBody(w http.ResponseWriter, r *http.Requ
 	copyHeaders(w.Header(), resp.Header)
 	removeHopHeaders(w.Header())
 	w.WriteHeader(resp.StatusCode)
-	if _, err := io.Copy(w, resp.Body); err != nil {
-		h.logger.ErrorContext(req.Context(), "write backend mutation response", "backend_id", backendID, "err", err)
+	if _, copyErr := io.Copy(w, resp.Body); copyErr != nil {
+		h.logger.ErrorContext(req.Context(), "write backend mutation response", "backend_id", backendID, "err", copyErr)
 	}
 
 	if resp.StatusCode >= http.StatusOK && resp.StatusCode < 400 {
@@ -246,7 +260,16 @@ func (h *Handler) handleBackendGET(w http.ResponseWriter, r *http.Request, backe
 
 	resp, err := h.proxyBackendGET(req, route, backendPath)
 	if err != nil {
-		h.logger.ErrorContext(req.Context(), "proxy backend get", "backend_id", backendID, "path", backendPath, "err", err)
+		h.logger.ErrorContext(
+			req.Context(),
+			"proxy backend get",
+			"backend_id",
+			backendID,
+			"path",
+			backendPath,
+			"err",
+			err,
+		)
 		writeError(w, http.StatusBadGateway, "backend request failed")
 		return
 	}
@@ -255,12 +278,17 @@ func (h *Handler) handleBackendGET(w http.ResponseWriter, r *http.Request, backe
 	copyHeaders(w.Header(), resp.Header)
 	removeHopHeaders(w.Header())
 	w.WriteHeader(resp.StatusCode)
-	if _, err := io.Copy(w, resp.Body); err != nil {
-		h.logger.ErrorContext(req.Context(), "write backend get response", "backend_id", backendID, "err", err)
+	if _, copyErr := io.Copy(w, resp.Body); copyErr != nil {
+		h.logger.ErrorContext(req.Context(), "write backend get response", "backend_id", backendID, "err", copyErr)
 	}
 }
 
-func (h *Handler) proxyBackendWithBody(r *http.Request, route service.BackendRoute, method, path string, body []byte) (*http.Response, error) {
+func (h *Handler) proxyBackendWithBody(
+	r *http.Request,
+	route service.BackendRoute,
+	method, path string,
+	body []byte,
+) (*http.Response, error) {
 	target := strings.TrimRight(route.Address, "/")
 	if !strings.HasPrefix(path, "/") {
 		target += "/" + path
@@ -292,7 +320,7 @@ func (h *Handler) enqueueSyncBackendByID(ctx context.Context, backendID string) 
 		h.logger.ErrorContext(ctx, "create backend sync task", "backend_id", backendID, "err", err)
 		return
 	}
-	if _, err := h.tasks.EnqueueContext(ctx, task); err != nil {
-		h.logger.ErrorContext(ctx, "enqueue backend sync task", "backend_id", backendID, "err", err)
+	if _, enqueueErr := h.tasks.EnqueueContext(ctx, task); enqueueErr != nil {
+		h.logger.ErrorContext(ctx, "enqueue backend sync task", "backend_id", backendID, "err", enqueueErr)
 	}
 }

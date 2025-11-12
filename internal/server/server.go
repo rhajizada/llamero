@@ -18,6 +18,11 @@ import (
 	"github.com/rhajizada/llamero/internal/service"
 )
 
+const (
+	shutdownTimeout   = 5 * time.Second
+	readHeaderTimeout = 10 * time.Second
+)
+
 // Server wraps the HTTP server lifecycle.
 type Server struct {
 	cfg     *config.ServerConfig
@@ -28,7 +33,13 @@ type Server struct {
 }
 
 // New constructs the handler, router, and server wiring.
-func New(cfg *config.ServerConfig, roleStore *roles.Store, svc *service.Service, tasks *asynq.Client, logger *slog.Logger) (*Server, error) {
+func New(
+	cfg *config.ServerConfig,
+	roleStore *roles.Store,
+	svc *service.Service,
+	tasks *asynq.Client,
+	logger *slog.Logger,
+) (*Server, error) {
 	if cfg == nil {
 		return nil, errors.New("config is required")
 	}
@@ -69,8 +80,9 @@ func New(cfg *config.ServerConfig, roleStore *roles.Store, svc *service.Service,
 // Run starts the HTTP listener until the context is cancelled.
 func (s *Server) Run(ctx context.Context) error {
 	srv := &http.Server{
-		Addr:    s.cfg.Address,
-		Handler: s.router,
+		Addr:              s.cfg.Address,
+		Handler:           s.router,
+		ReadHeaderTimeout: readHeaderTimeout,
 	}
 
 	errCh := make(chan error, 1)
@@ -85,7 +97,7 @@ func (s *Server) Run(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
 		if err := srv.Shutdown(shutdownCtx); err != nil {
 			return err

@@ -3,7 +3,9 @@ package redisstore
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -81,43 +83,12 @@ func (s *Store) ListBackends(ctx context.Context) ([]BackendStatus, error) {
 	}
 	statuses := make([]BackendStatus, 0, len(ids))
 	for _, id := range ids {
-		key := fmt.Sprintf(backendHashKey, id)
-		values, err := s.client.HGetAll(ctx, key).Result()
-		if err != nil {
-			return nil, err
+		status, loadErr := s.loadBackendStatus(ctx, id)
+		if loadErr != nil {
+			return nil, loadErr
 		}
-		status := BackendStatus{
-			ID: id,
-		}
-		if addr, ok := values["address"]; ok {
-			status.Address = addr
-		}
-		if healthy, ok := values["healthy"]; ok && healthy == "1" {
-			status.Healthy = true
-		}
-		if latency, ok := values["latency_ms"]; ok {
-			fmt.Sscan(latency, &status.LatencyMS)
-		}
-		if tags, ok := values["tags"]; ok && tags != "" {
-			status.Tags = decodeStringSlice(tags)
-		}
-		if models, ok := values["models"]; ok && models != "" {
-			status.Models = decodeStringSlice(models)
-		} else if legacy, ok := values["available_models"]; ok && legacy != "" {
-			status.Models = decodeStringSlice(legacy)
-		}
-		if loaded, ok := values["loaded_models"]; ok && loaded != "" {
-			status.LoadedModels = decodeStringSlice(loaded)
-		}
-		if rawMeta, ok := values["models_meta"]; ok && rawMeta != "" {
-			if meta, err := decodeModelMeta(rawMeta); err == nil {
-				status.ModelMeta = meta
-			}
-		}
-		if updated, ok := values["updated_at"]; ok {
-			if ts, err := parseUnix(updated); err == nil {
-				status.UpdatedAt = ts
-			}
+		if status.ID == "" {
+			continue
 		}
 		statuses = append(statuses, status)
 	}
@@ -126,6 +97,10 @@ func (s *Store) ListBackends(ctx context.Context) ([]BackendStatus, error) {
 
 // GetBackend loads a single backend status by ID.
 func (s *Store) GetBackend(ctx context.Context, id string) (BackendStatus, error) {
+	return s.loadBackendStatus(ctx, id)
+}
+
+func (s *Store) loadBackendStatus(ctx context.Context, id string) (BackendStatus, error) {
 	key := fmt.Sprintf(backendHashKey, id)
 	values, err := s.client.HGetAll(ctx, key).Result()
 	if err != nil {
@@ -135,42 +110,62 @@ func (s *Store) GetBackend(ctx context.Context, id string) (BackendStatus, error
 		return BackendStatus{}, nil
 	}
 	status := BackendStatus{ID: id}
-	if addr, ok := values["address"]; ok {
-		status.Address = addr
-	}
-	if healthy, ok := values["healthy"]; ok && healthy == "1" {
-		status.Healthy = true
-	}
-	if latency, ok := values["latency_ms"]; ok {
-		fmt.Sscan(latency, &status.LatencyMS)
-	}
-	if tags, ok := values["tags"]; ok && tags != "" {
-		status.Tags = decodeStringSlice(tags)
-	}
-	if models, ok := values["models"]; ok && models != "" {
-		status.Models = decodeStringSlice(models)
-	} else if legacy, ok := values["available_models"]; ok && legacy != "" {
-		status.Models = decodeStringSlice(legacy)
-	}
-	if loaded, ok := values["loaded_models"]; ok && loaded != "" {
-		status.LoadedModels = decodeStringSlice(loaded)
-	}
-	if rawMeta, ok := values["models_meta"]; ok && rawMeta != "" {
-		if meta, err := decodeModelMeta(rawMeta); err == nil {
-			status.ModelMeta = meta
-		}
-	}
-	if updated, ok := values["updated_at"]; ok {
-		if ts, err := parseUnix(updated); err == nil {
-			status.UpdatedAt = ts
-		}
-	}
+	populateBackendStatus(&status, values)
 	return status, nil
 }
 
+func populateBackendStatus(status *BackendStatus, values map[string]string) {
+	if addr := strings.TrimSpace(values["address"]); addr != "" {
+		status.Address = addr
+	}
+	status.Healthy = values["healthy"] == "1"
+
+	if latency, ok := parseLatency(values["latency_ms"]); ok {
+		status.LatencyMS = latency
+	}
+
+	status.Tags = decodeStringSlice(values["tags"])
+	status.Models = preferredModels(values)
+	status.LoadedModels = decodeStringSlice(values["loaded_models"])
+
+	if rawMeta := values["models_meta"]; rawMeta != "" {
+		if meta, metaErr := decodeModelMeta(rawMeta); metaErr == nil {
+			status.ModelMeta = meta
+		}
+	}
+
+	if updated := values["updated_at"]; updated != "" {
+		if ts, tsErr := parseUnix(updated); tsErr == nil {
+			status.UpdatedAt = ts
+		}
+	}
+}
+
+func parseLatency(raw string) (int64, bool) {
+	if strings.TrimSpace(raw) == "" {
+		return 0, false
+	}
+	value, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return value, true
+}
+
+func preferredModels(values map[string]string) []string {
+	if models := decodeStringSlice(values["models"]); len(models) > 0 {
+		return models
+	}
+	return decodeStringSlice(values["available_models"])
+}
+
 func parseUnix(raw string) (time.Time, error) {
-	var unixTS int64
-	if _, err := fmt.Sscan(raw, &unixTS); err != nil {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return time.Time{}, errors.New("empty timestamp")
+	}
+	unixTS, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
 		return time.Time{}, err
 	}
 	return time.Unix(unixTS, 0), nil
@@ -189,7 +184,7 @@ func encodeStringSlice(values []string) string {
 
 func decodeStringSlice(raw string) []string {
 	var out []string
-	for _, part := range strings.Split(raw, ",") {
+	for part := range strings.SplitSeq(raw, ",") {
 		part = strings.TrimSpace(part)
 		if part != "" {
 			out = append(out, part)

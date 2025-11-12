@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -15,6 +16,11 @@ import (
 	"github.com/rhajizada/llamero/internal/config"
 	"github.com/rhajizada/llamero/internal/models"
 	"github.com/rhajizada/llamero/internal/redisstore"
+)
+
+const (
+	defaultModelOwner     = "library"
+	backendRequestTimeout = 5 * time.Second
 )
 
 // RegisterBackends seeds Redis with backend definitions.
@@ -38,7 +44,7 @@ func (s *Service) RegisterBackends(ctx context.Context, defs []config.BackendDef
 		id := strings.TrimSpace(def.ID)
 		addr := strings.TrimSpace(def.Address)
 		if id == "" || addr == "" {
-			return fmt.Errorf("backend definition missing id or address")
+			return errors.New("backend definition missing id or address")
 		}
 		if _, exists := seenIDs[id]; exists {
 			return fmt.Errorf("duplicate backend id %q", id)
@@ -70,7 +76,7 @@ func (s *Service) RegisterBackends(ctx context.Context, defs []config.BackendDef
 		}
 		status.UpdatedAt = now
 
-		if err := s.store.SaveBackend(ctx, status, 0); err != nil {
+		if err = s.store.SaveBackend(ctx, status, 0); err != nil {
 			return err
 		}
 	}
@@ -79,7 +85,7 @@ func (s *Service) RegisterBackends(ctx context.Context, defs []config.BackendDef
 		if _, ok := desired[id]; ok {
 			continue
 		}
-		if err := s.store.DeleteBackend(ctx, id); err != nil {
+		if err = s.store.DeleteBackend(ctx, id); err != nil {
 			return err
 		}
 	}
@@ -94,7 +100,7 @@ func (s *Service) SyncBackends(ctx context.Context) error {
 		return err
 	}
 	for _, backend := range backends {
-		if err := s.syncBackend(ctx, backend); err != nil {
+		if err = s.syncBackend(ctx, backend); err != nil {
 			return err
 		}
 	}
@@ -105,7 +111,7 @@ func (s *Service) SyncBackends(ctx context.Context) error {
 func (s *Service) SyncBackendByID(ctx context.Context, backendID string) error {
 	backendID = strings.TrimSpace(backendID)
 	if backendID == "" {
-		return fmt.Errorf("backend id is required")
+		return errors.New("backend id is required")
 	}
 	status, err := s.store.GetBackend(ctx, backendID)
 	if err != nil {
@@ -252,7 +258,7 @@ func fetchInstalledModels(ctx context.Context, client *api.Client) ([]redisstore
 	var available []string
 	var loaded []string
 
-	listCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	listCtx, cancel := context.WithTimeout(ctx, backendRequestTimeout)
 	defer cancel()
 	resp, err := client.List(listCtx)
 	if err != nil {
@@ -267,9 +273,9 @@ func fetchInstalledModels(ctx context.Context, client *api.Client) ([]redisstore
 		available = append(available, name)
 	}
 
-	runningCtx, cancelRunning := context.WithTimeout(ctx, 5*time.Second)
+	runningCtx, cancelRunning := context.WithTimeout(ctx, backendRequestTimeout)
 	defer cancelRunning()
-	if running, err := client.ListRunning(runningCtx); err == nil {
+	if running, listErr := client.ListRunning(runningCtx); listErr == nil {
 		addProcessModels(metaMap, running.Models)
 		for _, model := range running.Models {
 			name := firstModelName(model.Name, model.Model)
@@ -329,7 +335,7 @@ func addProcessModels(registry map[string]redisstore.ModelInfo, models []api.Pro
 		registry[name] = redisstore.ModelInfo{
 			Name:      name,
 			CreatedAt: created,
-			OwnedBy:   "library",
+			OwnedBy:   defaultModelOwner,
 		}
 	}
 }
@@ -346,7 +352,7 @@ func firstModelName(values ...string) string {
 
 func inferOwner(remoteHost string) string {
 	if strings.TrimSpace(remoteHost) == "" {
-		return "library"
+		return defaultModelOwner
 	}
 	return remoteHost
 }
@@ -355,12 +361,7 @@ func contains(values []string, target string) bool {
 	if target == "" || len(values) == 0 {
 		return false
 	}
-	for _, value := range values {
-		if value == target {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(values, target)
 }
 
 func (s *Service) syncBackend(ctx context.Context, backend redisstore.BackendStatus) error {

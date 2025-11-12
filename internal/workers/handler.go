@@ -3,6 +3,7 @@ package workers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -34,7 +35,7 @@ func (h *Handler) HandleSyncBackendByID(ctx context.Context, task *asynq.Task) e
 	}
 	backendID := strings.TrimSpace(payload.BackendID)
 	if backendID == "" {
-		return fmt.Errorf("backend id is required")
+		return errors.New("backend id is required")
 	}
 	return h.svc.SyncBackendByID(ctx, backendID)
 }

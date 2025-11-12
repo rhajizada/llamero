@@ -154,9 +154,9 @@ type CompletionUsage struct {
 
 // EmbeddingsRequest represents a request to the /api/embeddings endpoint.
 type EmbeddingsRequest struct {
-	Model string      `json:"model"`
-	Input interface{} `json:"input"` // string or []string
-	User  string      `json:"user,omitempty"`
+	Model string `json:"model"`
+	Input any    `json:"input"` // string or []string
+	User  string `json:"user,omitempty"`
 } // @name EmbeddingsRequest
 
 // EmbeddingsResponse represents a response from the /api/embeddings endpoint.
