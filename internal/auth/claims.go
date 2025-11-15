@@ -2,6 +2,13 @@ package auth
 
 import "github.com/golang-jwt/jwt/v5"
 
+const (
+	// TokenTypeSession identifies interactive session tokens.
+	TokenTypeSession = "session"
+	// TokenTypePAT identifies personal access tokens.
+	TokenTypePAT = "pat"
+)
+
 // Claims represents the JWT payload used across Llamero services.
 type Claims struct {
 	jwt.RegisteredClaims

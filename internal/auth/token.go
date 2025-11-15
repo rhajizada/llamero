@@ -49,35 +49,43 @@ func NewTokenIssuer(cfg config.JWTConfig) (*TokenIssuer, error) {
 	}, nil
 }
 
-// Issue signs a JWT with the supplied identity metadata.
+// Issue signs a standard session JWT with the supplied identity metadata.
 func (i *TokenIssuer) Issue(userID uuid.UUID, externalSub, email, role string, scopes []string) (string, error) {
-	if userID == uuid.Nil {
-		return "", errors.New("user id cannot be empty")
+	payload := issuePayload{
+		UserID:      userID,
+		ExternalSub: externalSub,
+		Email:       email,
+		Role:        role,
+		Scopes:      scopes,
+		TokenType:   TokenTypeSession,
+		JTI:         uuid.NewString(),
+		ExpiresAt:   time.Now().Add(i.cfg.TTL),
 	}
-	if externalSub == "" {
-		return "", errors.New("external subject cannot be empty")
-	}
-	if len(scopes) == 0 {
-		return "", errors.New("scopes cannot be empty")
-	}
+	return i.issue(payload)
+}
 
-	now := time.Now()
-	claims := jwt.MapClaims{
-		"iss":     i.cfg.Issuer,
-		"sub":     userID.String(),
-		"ext_sub": externalSub,
-		"email":   email,
-		"role":    role,
-		"scopes":  scopes,
-		"type":    "session",
-		"jti":     uuid.NewString(),
-		"iat":     now.Unix(),
-		"exp":     now.Add(i.cfg.TTL).Unix(),
-		"aud":     i.cfg.Audience,
+// IssuePAT signs a personal access token using caller-provided expiry and identifier.
+func (i *TokenIssuer) IssuePAT(
+	userID uuid.UUID,
+	externalSub, email, role string,
+	scopes []string,
+	jti string,
+	expiresAt time.Time,
+) (string, error) {
+	if expiresAt.IsZero() {
+		return "", errors.New("expires_at cannot be empty")
 	}
-
-	t := jwt.NewWithClaims(i.method, claims)
-	return t.SignedString(i.privateKey)
+	payload := issuePayload{
+		UserID:      userID,
+		ExternalSub: externalSub,
+		Email:       email,
+		Role:        role,
+		Scopes:      scopes,
+		TokenType:   TokenTypePAT,
+		JTI:         jti,
+		ExpiresAt:   expiresAt,
+	}
+	return i.issue(payload)
 }
 
 func signingMethod(name string) (jwt.SigningMethod, error) {
@@ -140,6 +148,62 @@ func parseRSAPrivateKey(der []byte) (*rsa.PrivateKey, error) {
 		return nil, errors.New("pkcs8 key is not rsa")
 	}
 	return rsaKey, nil
+}
+
+type issuePayload struct {
+	UserID      uuid.UUID
+	ExternalSub string
+	Email       string
+	Role        string
+	Scopes      []string
+	TokenType   string
+	JTI         string
+	ExpiresAt   time.Time
+}
+
+func (i *TokenIssuer) issue(payload issuePayload) (string, error) {
+	if payload.UserID == uuid.Nil {
+		return "", errors.New("user id cannot be empty")
+	}
+	if payload.ExternalSub == "" {
+		return "", errors.New("external subject cannot be empty")
+	}
+	if payload.Email == "" {
+		return "", errors.New("email cannot be empty")
+	}
+	if payload.Role == "" {
+		return "", errors.New("role cannot be empty")
+	}
+	if len(payload.Scopes) == 0 {
+		return "", errors.New("scopes cannot be empty")
+	}
+	if payload.TokenType == "" {
+		return "", errors.New("token type cannot be empty")
+	}
+	if payload.JTI == "" {
+		return "", errors.New("jti cannot be empty")
+	}
+	now := time.Now()
+	if payload.ExpiresAt.Before(now) {
+		return "", errors.New("expires_at must be in the future")
+	}
+
+	claims := jwt.MapClaims{
+		"iss":     i.cfg.Issuer,
+		"sub":     payload.UserID.String(),
+		"ext_sub": payload.ExternalSub,
+		"email":   payload.Email,
+		"role":    payload.Role,
+		"scopes":  payload.Scopes,
+		"type":    payload.TokenType,
+		"jti":     payload.JTI,
+		"iat":     now.Unix(),
+		"exp":     payload.ExpiresAt.Unix(),
+		"aud":     i.cfg.Audience,
+	}
+
+	t := jwt.NewWithClaims(i.method, claims)
+	return t.SignedString(i.privateKey)
 }
 
 // LoadReader is exposed for tests.

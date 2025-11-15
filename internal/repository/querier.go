@@ -11,10 +11,16 @@ import (
 )
 
 type Querier interface {
+	CreateToken(ctx context.Context, arg CreateTokenParams) (Token, error)
 	DeleteUser(ctx context.Context, id uuid.UUID) error
+	GetTokenByID(ctx context.Context, arg GetTokenByIDParams) (Token, error)
+	GetTokenByJTI(ctx context.Context, jti string) (Token, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	GetUserByProviderSub(ctx context.Context, arg GetUserByProviderSubParams) (User, error)
+	ListTokensByUser(ctx context.Context, userID uuid.UUID) ([]Token, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]User, error)
+	MarkTokenUsed(ctx context.Context, id uuid.UUID) error
+	RevokeToken(ctx context.Context, arg RevokeTokenParams) (Token, error)
 	UpsertUser(ctx context.Context, arg UpsertUserParams) (User, error)
 }
 

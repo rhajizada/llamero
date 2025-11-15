@@ -3,22 +3,33 @@ package middleware
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/rhajizada/llamero/internal/auth"
+	"github.com/rhajizada/llamero/internal/service"
 )
 
 const bearerTokenParts = 2
 
 // Authz applies JWT verification and scope enforcement to HTTP handlers.
 type Authz struct {
-	verifier *auth.TokenVerifier
+	verifier     *auth.TokenVerifier
+	patValidator PATValidator
+}
+
+// PATValidator checks whether a PAT is still active.
+type PATValidator interface {
+	ValidatePAT(ctx context.Context, claims *auth.Claims) error
 }
 
 // NewAuthz constructs a scope-aware middleware set.
-func NewAuthz(verifier *auth.TokenVerifier) *Authz {
-	return &Authz{verifier: verifier}
+func NewAuthz(verifier *auth.TokenVerifier, patValidator PATValidator) *Authz {
+	return &Authz{
+		verifier:     verifier,
+		patValidator: patValidator,
+	}
 }
 
 // Require ensures the incoming request bears a token containing every supplied scope.
@@ -36,6 +47,22 @@ func (a *Authz) Require(scopes ...string) func(http.Handler) http.Handler {
 			if err != nil {
 				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid token"})
 				return
+			}
+
+			if claims.Type == auth.TokenTypePAT {
+				if a.patValidator == nil {
+					writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "pat validation unavailable"})
+					return
+				}
+				if err := a.patValidator.ValidatePAT(r.Context(), claims); err != nil {
+					var appErr *service.Error
+					if errors.As(err, &appErr) {
+						writeJSON(w, appErr.Code, map[string]string{"error": appErr.Message})
+					} else {
+						writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid token"})
+					}
+					return
+				}
 			}
 
 			if !claims.HasScopes(required) {

@@ -10,6 +10,20 @@ import (
 	"github.com/google/uuid"
 )
 
+type Token struct {
+	ID         uuid.UUID  `json:"id"`
+	UserID     uuid.UUID  `json:"user_id"`
+	Name       string     `json:"name"`
+	Scopes     []string   `json:"scopes"`
+	TokenType  string     `json:"token_type"`
+	Jti        string     `json:"jti"`
+	ExpiresAt  time.Time  `json:"expires_at"`
+	Revoked    bool       `json:"revoked"`
+	LastUsedAt *time.Time `json:"last_used_at"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
+}
+
 type User struct {
 	ID          uuid.UUID  `json:"id"`
 	Sub         string     `json:"sub"`

@@ -18,11 +18,19 @@ type Backend struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 } // @name Backend
 
-// BackendProcessDetails re-exports Ollama's model metadata for docs.
-type BackendProcessDetails = ollamaapi.ModelDetails // @name BackendProcessDetails
+type ProcessResponse = []ProcessModelResponse // @name ProcessResponse
 
-// BackendProcess re-exports the Ollama process model schema for docs.
-type BackendProcess = ollamaapi.ProcessModelResponse // @name BackendProcess
+type ProcessModelResponse struct {
+	Name          string       `json:"name"`
+	Model         string       `json:"model"`
+	Size          int64        `json:"size"`
+	Digest        string       `json:"digest"`
+	Details       ModelDetails `json:"details"`
+	ExpiresAt     time.Time    `json:"expires_at"`
+	SizeVRAM      int64        `json:"size_vram"`
+	ContextLength int          `json:"context_length"`
+} // @name ProcessModelResponse
 
-// BackendProcessList re-exports the Ollama process list schema for docs.
-type BackendProcessList = ollamaapi.ProcessResponse // @name BackendProcessList
+type (
+	ModelDetails = ollamaapi.ModelDetails // @name ModelDetails
+)

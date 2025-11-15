@@ -52,7 +52,7 @@ func (h *Handler) HandleListBackends(w http.ResponseWriter, r *http.Request) {
 // @Produce json
 // @Security BearerAuth
 // @Param backendID path string true "Backend ID"
-// @Success 200 {object} models.BackendProcessList
+// @Success 200 {object} models.ProcessResponse
 // @Failure 404 {object} map[string]string
 // @Failure 502 {object} map[string]string
 // @Router /api/backends/{backendID}/ps [get].

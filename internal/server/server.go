@@ -64,7 +64,7 @@ func New(
 	if err != nil {
 		return nil, err
 	}
-	authz := middleware.NewAuthz(verifier)
+	authz := middleware.NewAuthz(verifier, svc)
 	r := router.New(h, authz)
 	handlerWithLogging := middleware.Logging(logger)(r)
 
