@@ -38,8 +38,8 @@ tasks:
       version:
         sh: git rev-parse --short HEAD
     preconditions:
-      - sh: '[ "{{.app}}" = "server" ] || [ "{{.app}}" = "worker" ] || [ "{{.app}}" = "scheduler" ]'
-        msg: "❌ Error: invalid app '{{.app}}', valid options are server, worker, or scheduler."
+      - sh: '[ "{{.app}}" = "server" ] || [ "{{.app}}" = "worker" ] || [ "{{.app}}" = "scheduler" ] || [ "{{.app}}" = "ui" ]'
+        msg: "❌ Error: invalid app '{{.app}}', valid options are server, worker, scheduler or ui."
     cmds:
       - |
         docker build \
@@ -105,4 +105,4 @@ tasks:
     cmds:
       - |
         go tool swag init -g cmd/server/main.go --output docs --parseDependency --parseInternal
-        npx swagger-typescript-api generate -p ./docs/swagger.json -o ./ui/src/api --modular
+        npx swagger-typescript-api generate -p ./docs/swagger.json -o ./ui/lib/api --modular

@@ -538,6 +538,57 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/backends/{backendID}/tags": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Backends"
+                ],
+                "summary": "List available models on a backend",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Backend ID",
+                        "name": "backendID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/BackendTagsResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/backends/{backendID}/version": {
             "get": {
                 "security": [
@@ -1372,6 +1423,17 @@ const docTemplate = `{
                 }
             }
         },
+        "BackendTagsResponse": {
+            "type": "object",
+            "properties": {
+                "models": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/OllamaTag"
+                    }
+                }
+            }
+        },
         "BackendVersionResponse": {
             "type": "object",
             "properties": {
@@ -1846,6 +1908,23 @@ const docTemplate = `{
                 },
                 "object": {
                     "type": "string"
+                }
+            }
+        },
+        "OllamaTag": {
+            "type": "object",
+            "properties": {
+                "digest": {
+                    "type": "string"
+                },
+                "modified_at": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
                 }
             }
         },

@@ -1,0 +1,24 @@
+"use client";
+
+import { usePathname } from "next/navigation";
+import { AuthProvider } from "@/components/AuthProvider";
+import { Navbar } from "@/components/Navbar";
+import { ThemeProvider } from "@/components/ThemeProvider";
+
+export const AppShell = ({ children }: { children: React.ReactNode }) => {
+  const pathname = usePathname();
+  const hideNav = pathname?.startsWith("/login");
+
+  return (
+    <ThemeProvider>
+      <AuthProvider>
+        <div className="min-h-screen bg-background text-foreground">
+          {hideNav ? null : <Navbar />}
+          <main className="mx-auto w-full max-w-6xl px-4 pb-12 pt-8 lg:px-6">
+            {children}
+          </main>
+        </div>
+      </AuthProvider>
+    </ThemeProvider>
+  );
+};

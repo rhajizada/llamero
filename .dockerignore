@@ -10,5 +10,7 @@ tmp
 node_modules
 dist
 build
+ui/node_modules
+ui/.next
 secrets/
 config/

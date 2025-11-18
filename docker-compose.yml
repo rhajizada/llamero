@@ -75,12 +75,32 @@ services:
       - redis
       - ollama
     environment: *app-env
-    ports:
-      - "8080:8080"
     volumes:
       - ./config/backends.yaml:/app/config/backends.yaml:ro
       - ./config/roles.yaml:/app/config/roles.yaml:ro
       - ./secrets:/app/secrets:ro
+    restart: unless-stopped
+
+  ui:
+    build:
+      context: .
+      dockerfile: docker/ui/Dockerfile
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3000
+    depends_on:
+      - server
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27
+    depends_on:
+      - ui
+      - server
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     restart: unless-stopped
 
   worker:

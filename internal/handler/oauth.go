@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -109,17 +110,21 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := map[string]any{
-		"token":       token,
-		"token_type":  "Bearer",
-		"expires_in":  int(h.cfg.JWT.TTL.Seconds()),
-		"role":        role,
-		"scopes":      scopes,
-		"provider":    h.cfg.OAuth.ProviderName,
-		"issued_at":   time.Now().UTC().Format(time.RFC3339),
-		"redirect_to": h.cfg.ExternalURL,
+	redirectTarget := h.loginRedirectURL(token)
+	http.Redirect(w, r, redirectTarget, http.StatusFound)
+}
+
+func (h *Handler) loginRedirectURL(token string) string {
+	base := strings.TrimRight(h.cfg.ExternalURL, "/")
+	if base == "" {
+		base = "/"
 	}
-	writeJSON(w, http.StatusOK, resp)
+
+	params := url.Values{}
+	params.Set("token", token)
+	params.Set("expires_in", strconv.Itoa(int(h.cfg.JWT.TTL.Seconds())))
+
+	return fmt.Sprintf("%s/login#%s", base, params.Encode())
 }
 
 func (h *Handler) buildAuthorizeURL(state string) (string, error) {

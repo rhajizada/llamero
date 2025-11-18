@@ -34,3 +34,14 @@ type ProcessModelResponse struct {
 type (
 	ModelDetails = ollamaapi.ModelDetails // @name ModelDetails
 )
+
+type BackendTagsResponse struct {
+	Models []OllamaTag `json:"models,omitempty"`
+} // @name BackendTagsResponse
+
+type OllamaTag struct {
+	Name       string `json:"name,omitempty"`
+	Size       int64  `json:"size,omitempty"`
+	Digest     string `json:"digest,omitempty"`
+	ModifiedAt string `json:"modified_at,omitempty"`
+} // @name OllamaTag

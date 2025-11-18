@@ -121,6 +121,13 @@ definitions:
       template:
         type: string
     type: object
+  BackendTagsResponse:
+    properties:
+      models:
+        items:
+          $ref: '#/definitions/OllamaTag'
+        type: array
+    type: object
   BackendVersionResponse:
     properties:
       version:
@@ -431,6 +438,17 @@ definitions:
         type: array
       object:
         type: string
+    type: object
+  OllamaTag:
+    properties:
+      digest:
+        type: string
+      modified_at:
+        type: string
+      name:
+        type: string
+      size:
+        type: integer
     type: object
   PersonalAccessToken:
     properties:
@@ -902,6 +920,38 @@ paths:
       security:
       - BearerAuth: []
       summary: Show model details on the specified backend
+      tags:
+      - Backends
+  /api/backends/{backendID}/tags:
+    get:
+      parameters:
+      - description: Backend ID
+        in: path
+        name: backendID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/BackendTagsResponse'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Bad Gateway
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List available models on a backend
       tags:
       - Backends
   /api/backends/{backendID}/version:

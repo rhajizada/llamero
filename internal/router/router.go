@@ -69,6 +69,11 @@ func New(h *handler.Handler, authz *middleware.Authz) *Router {
 		authz.Require("backends:listModels"),
 	)
 	r.Handle(
+		"GET /api/backends/{backendID}/tags",
+		http.HandlerFunc(h.HandleBackendTags),
+		authz.Require("backends:listModels"),
+	)
+	r.Handle(
 		"GET /api/backends/{backendID}/version",
 		http.HandlerFunc(h.HandleBackendVersion),
 		authz.Require("backends:list"),

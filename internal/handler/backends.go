@@ -25,6 +25,7 @@ var (
 	_ models.BackendShowModelResponse
 	_ models.BackendOperationResponse
 	_ models.BackendVersionResponse
+	_ models.BackendTagsResponse
 )
 
 // HandleListBackends godoc
@@ -160,6 +161,20 @@ func (h *Handler) HandleBackendDelete(w http.ResponseWriter, r *http.Request) {
 // @Router /api/backends/{backendID}/show [post].
 func (h *Handler) HandleBackendShow(w http.ResponseWriter, r *http.Request) {
 	h.handleBackendProxyWithBody(w, r, http.MethodPost, "/api/show", false)
+}
+
+// HandleBackendTags godoc
+// @Summary List available models on a backend
+// @Tags Backends
+// @Produce json
+// @Security BearerAuth
+// @Param backendID path string true "Backend ID"
+// @Success 200 {object} models.BackendTagsResponse
+// @Failure 404 {object} map[string]string
+// @Failure 502 {object} map[string]string
+// @Router /api/backends/{backendID}/tags [get].
+func (h *Handler) HandleBackendTags(w http.ResponseWriter, r *http.Request) {
+	h.handleBackendGET(w, r, "/api/tags")
 }
 
 // HandleBackendVersion godoc
