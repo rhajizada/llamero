@@ -5,6 +5,21 @@ import { createApiClient } from "@/lib/api-client";
 import { useAuth } from "@/components/AuthProvider";
 import type { Model, ModelList } from "@/lib/api/data-contracts";
 
+const formatDate = (value?: string | number) => {
+  if (!value) return "—";
+  const numeric = typeof value === "number" ? value : Number(value);
+  const date =
+    !Number.isNaN(numeric) && numeric < 1e12
+      ? new Date(numeric * 1000)
+      : new Date(value);
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "UTC",
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  }).format(date);
+};
+
 export const ModelsPanel = () => {
   const { token } = useAuth();
   const [models, setModels] = useState<Model[]>([]);
@@ -37,8 +52,7 @@ export const ModelsPanel = () => {
     <section className="rounded-3xl border border-border bg-card/60 p-6 shadow-sm">
       <header className="mb-4 flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p className="text-xs text-muted-foreground">Models</p>
-          <h2 className="text-xl font-semibold text-foreground">Available models</h2>
+          <h2 className="text-xl font-semibold text-foreground">Models</h2>
         </div>
       </header>
       {error ? (
@@ -52,26 +66,43 @@ export const ModelsPanel = () => {
             <tr>
               <th className="px-4 py-3 font-normal">ID</th>
               <th className="px-4 py-3 font-normal">Owner</th>
+              <th className="px-4 py-3 font-normal">Created</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td className="px-4 py-4 text-sm text-muted-foreground" colSpan={2}>
+                <td
+                  className="px-4 py-4 text-sm text-muted-foreground"
+                  colSpan={3}
+                >
                   Loading models…
                 </td>
               </tr>
             ) : tableRows.length === 0 ? (
               <tr>
-                <td className="px-4 py-4 text-sm text-muted-foreground" colSpan={2}>
+                <td
+                  className="px-4 py-4 text-sm text-muted-foreground"
+                  colSpan={3}
+                >
                   No models found
                 </td>
               </tr>
             ) : (
               tableRows.map((model) => (
-                <tr key={model.id} className="border-t border-border/60 hover:bg-muted/30">
-                  <td className="px-4 py-3 font-semibold text-foreground">{model.id}</td>
-                  <td className="px-4 py-3 text-sm text-muted-foreground">{model.owned_by || "n/a"}</td>
+                <tr
+                  key={model.id}
+                  className="border-t border-border/60 hover:bg-muted/30"
+                >
+                  <td className="px-4 py-3 font-semibold text-foreground">
+                    {model.id}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">
+                    {model.owned_by || "n/a"}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">
+                    {formatDate(model.created)}
+                  </td>
                 </tr>
               ))
             )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { format } from "date-fns";
+import { format, startOfToday } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -16,12 +16,15 @@ const safeDate = (value: Date | null) => {
 };
 
 export const TokenExpiryPicker = ({ value, onChange }: TokenExpiryPickerProps) => {
+  const today = startOfToday();
+
   return (
     <Popover>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
           className="w-full justify-start text-left font-normal"
+          aria-label={value ? `Expiry ${format(value, "PP")}` : "Select expiry date"}
         >
           {value ? format(value, "PP") : <span>Select a date</span>}
         </Button>
@@ -31,7 +34,7 @@ export const TokenExpiryPicker = ({ value, onChange }: TokenExpiryPickerProps) =
           mode="single"
           selected={safeDate(value)}
           onSelect={(date) => onChange(date ?? null)}
-          disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+          fromDate={today}
           initialFocus
         />
       </PopoverContent>

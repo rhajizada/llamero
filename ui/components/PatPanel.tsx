@@ -4,6 +4,14 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { createApiClient } from "@/lib/api-client";
 import { TokenExpiryPicker } from "@/components/TokenExpiryPicker";
 import { useAuth } from "@/components/AuthProvider";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type {
   PersonalAccessToken,
   PersonalAccessTokenResponse,
@@ -51,8 +59,10 @@ export const PatPanel = () => {
   const [error, setError] = useState<string | null>(null);
   const [issuedToken, setIssuedToken] =
     useState<PersonalAccessTokenResponse | null>(null);
+  const [copied, setCopied] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showSecretModal, setShowSecretModal] = useState(false);
+  const [tokenToRevoke, setTokenToRevoke] = useState<string | null>(null);
   const [form, setForm] = useState<TokenFormState>({
     name: "",
     scopes: [],
@@ -116,6 +126,7 @@ export const PatPanel = () => {
         scopes: form.scopes.length ? form.scopes : undefined,
       });
       setIssuedToken(response.data ?? null);
+      setCopied(false);
       setShowCreateModal(false);
       setShowSecretModal(true);
       setForm({
@@ -258,7 +269,7 @@ export const PatPanel = () => {
                             <button
                               type="button"
                               className="text-xs tracking-wide text-destructive hover:underline"
-                              onClick={() => onDelete(item.id)}
+                              onClick={() => setTokenToRevoke(item.id ?? null)}
                             >
                               Revoke
                             </button>
@@ -422,12 +433,18 @@ export const PatPanel = () => {
                 type="button"
                 onClick={() => {
                   if (issuedToken?.token) {
-                    navigator.clipboard?.writeText(issuedToken.token);
+                    navigator.clipboard?.writeText(issuedToken.token).then(
+                      () => {
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      },
+                      () => setCopied(false),
+                    );
                   }
                 }}
                 className="rounded-full border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-muted"
               >
-                Copy token
+                {copied ? "Copied" : "Copy token"}
               </button>
               <button
                 type="button"
@@ -440,6 +457,37 @@ export const PatPanel = () => {
           </div>
         </div>
       ) : null}
+      <Dialog open={Boolean(tokenToRevoke)} onOpenChange={(open) => !open && setTokenToRevoke(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Revoke token</DialogTitle>
+            <DialogDescription>
+              Revoked tokens cannot be used again. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <button
+              type="button"
+              className="rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
+              onClick={() => setTokenToRevoke(null)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="rounded-full bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground hover:opacity-90"
+              onClick={() => {
+                if (tokenToRevoke) {
+                  onDelete(tokenToRevoke);
+                  setTokenToRevoke(null);
+                }
+              }}
+            >
+              Revoke token
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 };

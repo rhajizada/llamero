@@ -113,7 +113,7 @@ const listTokensByUser = `-- name: ListTokensByUser :many
 SELECT id, user_id, name, scopes, token_type, jti, expires_at, revoked, last_used_at, created_at, updated_at
 FROM tokens
 WHERE user_id = $1
-  AND revoked IS NULL
+  AND COALESCE(revoked, FALSE) = FALSE
 ORDER BY created_at DESC
 `
 
