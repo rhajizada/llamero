@@ -139,8 +139,8 @@ func (h *Handler) buildAuthorizeURL(state string) (string, error) {
 	q.Set("redirect_uri", h.cfg.OAuth.RedirectURL)
 	q.Set("scope", strings.Join(h.cfg.OAuth.Scopes, " "))
 	q.Set("state", state)
-	if len(h.cfg.OAuth.Audiences) > 0 {
-		q.Set("audience", strings.Join(h.cfg.OAuth.Audiences, " "))
+	if aud := strings.TrimSpace(h.cfg.JWT.Audience); aud != "" {
+		q.Set("audience", aud)
 	}
 	u.RawQuery = q.Encode()
 	return u.String(), nil

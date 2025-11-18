@@ -40,7 +40,6 @@ type OAuthConfig struct {
 	UserInfoURL  string   `env:"LLAMERO_OAUTH_USERINFO_URL,notEmpty"`
 	RedirectURL  string   `env:"LLAMERO_OAUTH_REDIRECT_URL,notEmpty"`
 	Scopes       []string `env:"LLAMERO_OAUTH_SCOPES"                 envDefault:"openid,email,profile" envSeparator:","`
-	Audiences    []string `env:"LLAMERO_OAUTH_AUDIENCES"                                                envSeparator:","`
 }
 
 // JWTConfig defines how internal tokens are signed.

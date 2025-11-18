@@ -15,7 +15,9 @@ import (
 )
 
 const (
-	defaultHTTPTimeout = 60 * time.Second
+	// backendHTTPTimeout controls how long we wait for backend responses. Set to
+	// zero to allow long-running streaming requests to complete.
+	backendHTTPTimeout = 0
 	stateStoreTTL      = 5 * time.Minute
 )
 
@@ -64,7 +66,7 @@ func New(
 		cfg:    cfg,
 		roles:  roleStore,
 		svc:    svc,
-		client: &http.Client{Timeout: defaultHTTPTimeout},
+		client: &http.Client{Timeout: backendHTTPTimeout},
 		state:  auth.NewStateStore(stateStoreTTL),
 		issuer: issuer,
 		tasks:  tasks,
