@@ -31,6 +31,7 @@ type CreatePersonalAccessTokenRequest struct {
 // PersonalAccessTokenResponse documents PAT responses.
 type PersonalAccessTokenResponse struct {
 	models.PersonalAccessToken
+
 	Token string `json:"token,omitempty"`
 } // @name PersonalAccessTokenResponse
 
@@ -241,7 +242,7 @@ func (h *Handler) HandleDeleteToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.svc.RevokePersonalAccessToken(r.Context(), userID, tokenID); err != nil {
+	if err = h.svc.RevokePersonalAccessToken(r.Context(), userID, tokenID); err != nil {
 		var appErr *service.Error
 		if errors.As(err, &appErr) {
 			writeError(w, appErr.Code, appErr.Message)

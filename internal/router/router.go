@@ -31,7 +31,11 @@ func New(h *handler.Handler, authz *middleware.Authz) *Router {
 	r.Handle("GET /api/profile/tokens", http.HandlerFunc(h.HandleListTokens), authz.Require("profile:get"))
 	r.Handle("POST /api/profile/tokens", http.HandlerFunc(h.HandleCreateToken), authz.Require("profile:get"))
 	r.Handle("GET /api/profile/tokens/{tokenID}", http.HandlerFunc(h.HandleGetToken), authz.Require("profile:get"))
-	r.Handle("DELETE /api/profile/tokens/{tokenID}", http.HandlerFunc(h.HandleDeleteToken), authz.Require("profile:get"))
+	r.Handle(
+		"DELETE /api/profile/tokens/{tokenID}",
+		http.HandlerFunc(h.HandleDeleteToken),
+		authz.Require("profile:get"),
+	)
 	r.Handle("/api/backends", http.HandlerFunc(h.HandleListBackends), authz.Require("backends:list"))
 	r.Handle(
 		"GET /api/backends/{backendID}/ps",

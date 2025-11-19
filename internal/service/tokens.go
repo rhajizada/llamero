@@ -26,7 +26,10 @@ type CreateTokenParams struct {
 }
 
 // CreatePersonalAccessToken stores PAT metadata for the supplied user.
-func (s *Service) CreatePersonalAccessToken(ctx context.Context, params CreateTokenParams) (models.PersonalAccessToken, error) {
+func (s *Service) CreatePersonalAccessToken(
+	ctx context.Context,
+	params CreateTokenParams,
+) (models.PersonalAccessToken, error) {
 	name := strings.TrimSpace(params.Name)
 	if name == "" {
 		return models.PersonalAccessToken{}, &Error{
@@ -82,7 +85,10 @@ func (s *Service) CreatePersonalAccessToken(ctx context.Context, params CreateTo
 }
 
 // ListPersonalAccessTokens returns PAT metadata for a user ordered by creation time.
-func (s *Service) ListPersonalAccessTokens(ctx context.Context, userID uuid.UUID) ([]models.PersonalAccessToken, error) {
+func (s *Service) ListPersonalAccessTokens(
+	ctx context.Context,
+	userID uuid.UUID,
+) ([]models.PersonalAccessToken, error) {
 	if userID == uuid.Nil {
 		return nil, &Error{
 			Code:    http.StatusBadRequest,
@@ -105,7 +111,10 @@ func (s *Service) ListPersonalAccessTokens(ctx context.Context, userID uuid.UUID
 }
 
 // GetPersonalAccessToken fetches a specific PAT by identifier for a user.
-func (s *Service) GetPersonalAccessToken(ctx context.Context, userID, tokenID uuid.UUID) (models.PersonalAccessToken, error) {
+func (s *Service) GetPersonalAccessToken(
+	ctx context.Context,
+	userID, tokenID uuid.UUID,
+) (models.PersonalAccessToken, error) {
 	if userID == uuid.Nil || tokenID == uuid.Nil {
 		return models.PersonalAccessToken{}, &Error{
 			Code:    http.StatusBadRequest,

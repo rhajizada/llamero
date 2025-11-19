@@ -37,32 +37,9 @@ func (a *Authz) Require(scopes ...string) func(http.Handler) http.Handler {
 	required := dedupe(scopes)
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			token := bearerToken(r.Header.Get("Authorization"))
-			if token == "" {
-				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing bearer token"})
+			claims, ok := authenticate(w, r, a.verifier, a.patValidator)
+			if !ok {
 				return
-			}
-
-			claims, err := a.verifier.Verify(r.Context(), token)
-			if err != nil {
-				writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid token"})
-				return
-			}
-
-			if claims.Type == auth.TokenTypePAT {
-				if a.patValidator == nil {
-					writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "pat validation unavailable"})
-					return
-				}
-				if err := a.patValidator.ValidatePAT(r.Context(), claims); err != nil {
-					var appErr *service.Error
-					if errors.As(err, &appErr) {
-						writeJSON(w, appErr.Code, map[string]string{"error": appErr.Message})
-					} else {
-						writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid token"})
-					}
-					return
-				}
 			}
 
 			if !claims.HasScopes(required) {
@@ -83,6 +60,54 @@ func ClaimsFromContext(ctx context.Context) (*auth.Claims, bool) {
 }
 
 type claimsKey struct{}
+
+var errPATValidationUnavailable = errors.New("pat validation unavailable")
+
+func authenticate(
+	w http.ResponseWriter,
+	r *http.Request,
+	verifier *auth.TokenVerifier,
+	patValidator PATValidator,
+) (*auth.Claims, bool) {
+	token := bearerToken(r.Header.Get("Authorization"))
+	if token == "" {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "missing bearer token"})
+		return nil, false
+	}
+
+	claims, err := verifier.Verify(r.Context(), token)
+	if err != nil {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid token"})
+		return nil, false
+	}
+
+	if err = validatePAT(r.Context(), claims, patValidator); err != nil {
+		var appErr *service.Error
+		switch {
+		case errors.As(err, &appErr):
+			writeJSON(w, appErr.Code, map[string]string{"error": appErr.Message})
+		case errors.Is(err, errPATValidationUnavailable):
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		default:
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid token"})
+		}
+		return nil, false
+	}
+
+	return claims, true
+}
+
+func validatePAT(ctx context.Context, claims *auth.Claims, patValidator PATValidator) error {
+	if claims.Type != auth.TokenTypePAT {
+		return nil
+	}
+
+	if patValidator == nil {
+		return errPATValidationUnavailable
+	}
+
+	return patValidator.ValidatePAT(ctx, claims)
+}
 
 func bearerToken(header string) string {
 	if header == "" {
