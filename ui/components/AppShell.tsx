@@ -1,9 +1,9 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { AuthProvider } from "@/components/AuthProvider";
-import { Navbar } from "@/components/Navbar";
-import { ThemeProvider } from "@/components/ThemeProvider";
+import { AuthProvider } from "./AuthProvider";
+import { Navbar } from "./Navbar";
+import { ThemeProvider } from "./ThemeProvider";
 
 export const AppShell = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
