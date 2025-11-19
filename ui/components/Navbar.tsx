@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useAuth } from "@/components/AuthProvider";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { useAuth } from "./AuthProvider";
+import { ThemeToggle } from "./ThemeToggle";
 
 export const Navbar = () => {
   const { isAuthenticated, profile, claims, login, logout } = useAuth();
