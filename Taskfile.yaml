@@ -60,7 +60,7 @@ tasks:
       vars:
         - DOCKER_REGISTRY_URL
     preconditions:
-      - sh: '[ "{{.app}}" = "server" ] || [ "{{.app}}" = "worker" ] || [ "{{.app}}" = "scheduler" ]'
+      - sh: '[ "{{.app}}" = "server" ] || [ "{{.app}}" = "worker" ] || [ "{{.app}}" = "scheduler" ] || [ "{{.app}}" = "ui" ]'
         msg: "❌ Error: invalid app '{{.app}}', valid options are server, worker, or scheduler."
     cmds:
       - task: build-image
