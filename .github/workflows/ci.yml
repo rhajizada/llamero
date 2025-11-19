@@ -12,9 +12,6 @@ jobs:
   golangci-lint:
     name: golangci-lint
     runs-on: ubuntu-latest
-    env:
-      GOPATH: /go_path
-      GOCACHE: /go_cache
     steps:
       - uses: actions/checkout@v4
         with:
