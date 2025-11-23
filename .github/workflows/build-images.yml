@@ -60,5 +60,6 @@ jobs:
           push: true
           context: .
           file: ./docker/${{ matrix.app }}/Dockerfile
+          build-args: ${{ matrix.app == 'ui' && 'NEXT_TELEMETRY_DISABLED=1' || '' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
