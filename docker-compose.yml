@@ -1,4 +1,4 @@
-x-app-env: &app-env
+x-server-env: &server-env
   LLAMERO_SERVER_ADDRESS: ${LLAMERO_SERVER_ADDRESS:-:8080}
   LLAMERO_SERVER_EXTERNAL_URL: ${LLAMERO_SERVER_EXTERNAL_URL:-http://localhost:8080}
   LLAMERO_OAUTH_PROVIDER_NAME: ${LLAMERO_OAUTH_PROVIDER_NAME}
@@ -10,7 +10,7 @@ x-app-env: &app-env
   LLAMERO_OAUTH_REDIRECT_URL: ${LLAMERO_OAUTH_REDIRECT_URL}
   LLAMERO_OAUTH_SCOPES: ${LLAMERO_OAUTH_SCOPES}
   LLAMERO_JWT_ISSUER: ${LLAMERO_JWT_ISSUER:-llamero}
-  LLAMERO_JWT_AUDIENCE: ${LLAMERO_JWT_AUDIENCE:-llamero-audience}
+  LLAMERO_JWT_AUDIENCE: ${LLAMERO_JWT_AUDIENCE:-ollama-clients}
   LLAMERO_JWT_PRIVATE_KEY_PATH: ${LLAMERO_JWT_PRIVATE_KEY_PATH:-/app/secrets/jwt_private.pem}
   LLAMERO_JWT_PUBLIC_KEY_PATH: ${LLAMERO_JWT_PUBLIC_KEY_PATH:-/app/secrets/jwt_public.pem}
   LLAMERO_JWT_SIGNING_METHOD: ${LLAMERO_JWT_SIGNING_METHOD:-EdDSA}
@@ -28,7 +28,26 @@ x-app-env: &app-env
   LLAMERO_REDIS_PASSWORD: ${LLAMERO_REDIS_PASSWORD:-}
   LLAMERO_REDIS_DB: ${LLAMERO_REDIS_DB:-0}
   LLAMERO_BACKENDS_FILE: ${LLAMERO_BACKENDS_FILE:-/app/config/backends.yaml}
+
+x-worker-env: &worker-env
+  LLAMERO_POSTGRES_HOST: postgres
+  LLAMERO_POSTGRES_PORT: ${LLAMERO_POSTGRES_PORT:-5432}
+  LLAMERO_POSTGRES_USER: ${LLAMERO_POSTGRES_USER:-llamero}
+  LLAMERO_POSTGRES_PASSWORD: ${LLAMERO_POSTGRES_PASSWORD:-llamero}
+  LLAMERO_POSTGRES_DBNAME: ${LLAMERO_POSTGRES_DBNAME:-llamero}
+  LLAMERO_POSTGRES_SSLMODE: ${LLAMERO_POSTGRES_SSLMODE:-disable}
+  LLAMERO_MIGRATIONS_DIR: ${LLAMERO_MIGRATIONS_DIR:-data/sql/migrations}
+  LLAMERO_REDIS_ADDR: redis:6379
+  LLAMERO_REDIS_USERNAME: ${LLAMERO_REDIS_USERNAME:-}
+  LLAMERO_REDIS_PASSWORD: ${LLAMERO_REDIS_PASSWORD:-}
+  LLAMERO_REDIS_DB: ${LLAMERO_REDIS_DB:-0}
   LLAMERO_WORKER_CONCURRENCY: ${LLAMERO_WORKER_CONCURRENCY:-5}
+
+x-scheduler-env: &scheduler-env
+  LLAMERO_REDIS_ADDR: redis:6379
+  LLAMERO_REDIS_USERNAME: ${LLAMERO_REDIS_USERNAME:-}
+  LLAMERO_REDIS_PASSWORD: ${LLAMERO_REDIS_PASSWORD:-}
+  LLAMERO_REDIS_DB: ${LLAMERO_REDIS_DB:-0}
   LLAMERO_SCHEDULER_PING_SPEC: ${LLAMERO_SCHEDULER_PING_SPEC:-@every 5m}
 
 services:
@@ -73,7 +92,7 @@ services:
       - postgres
       - redis
       - ollama
-    environment: *app-env
+    environment: *server-env
     volumes:
       - ./config/backends.yaml:/app/config/backends.yaml:ro
       - ./config/roles.yaml:/app/config/roles.yaml:ro
@@ -112,10 +131,7 @@ services:
     depends_on:
       - postgres
       - redis
-    environment: *app-env
-    volumes:
-      - ./config/backends.yaml:/app/config/backends.yaml:ro
-      - ./secrets:/app/secrets:ro
+    environment: *worker-env
     restart: unless-stopped
 
   scheduler:
@@ -126,10 +142,7 @@ services:
         VERSION: "${LLAMERO_VERSION:-dev}"
     depends_on:
       - redis
-    environment: *app-env
-    volumes:
-      - ./config/backends.yaml:/app/config/backends.yaml:ro
-      - ./secrets:/app/secrets:ro
+    environment: *scheduler-env
     restart: unless-stopped
 
 volumes:

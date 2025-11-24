@@ -26,8 +26,6 @@ type ServerConfig struct {
 	Database    DatabaseConfig
 	Store       RedisConfig
 	Backends    BackendsConfig
-	Worker      WorkerSettings
-	Scheduler   SchedulerSettings
 }
 
 // OAuthConfig captures the OAuth2 provider integration points.
@@ -87,6 +85,19 @@ type SchedulerSettings struct {
 	BackendPingSpec string `env:"LLAMERO_SCHEDULER_PING_SPEC" envDefault:"@every 5m"`
 }
 
+// WorkerConfig contains only the knobs needed by the worker binary.
+type WorkerConfig struct {
+	Database DatabaseConfig
+	Store    RedisConfig
+	Worker   WorkerSettings
+}
+
+// SchedulerConfig contains the scheduler-only runtime knobs.
+type SchedulerConfig struct {
+	Store     RedisConfig
+	Scheduler SchedulerSettings
+}
+
 // BackendDefinition describes a single Ollama backend entry.
 type BackendDefinition struct {
 	ID      string   `yaml:"id"`
@@ -116,6 +127,24 @@ func LoadServer() (*ServerConfig, error) {
 		return nil, err
 	}
 	cfg.Roles.Groups = groups
+	return &cfg, nil
+}
+
+// LoadWorker populates WorkerConfig from environment variables.
+func LoadWorker() (*WorkerConfig, error) {
+	var cfg WorkerConfig
+	if err := env.Parse(&cfg); err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+// LoadScheduler populates SchedulerConfig from environment variables.
+func LoadScheduler() (*SchedulerConfig, error) {
+	var cfg SchedulerConfig
+	if err := env.Parse(&cfg); err != nil {
+		return nil, err
+	}
 	return &cfg, nil
 }
 

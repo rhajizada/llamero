@@ -15,7 +15,7 @@ func main() {
 	logger := logging.New()
 	slog.SetDefault(logger)
 
-	cfg, err := config.LoadServer()
+	cfg, err := config.LoadScheduler()
 	if err != nil {
 		logger.Error("load config", "err", err)
 		os.Exit(1)

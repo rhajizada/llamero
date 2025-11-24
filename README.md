@@ -25,9 +25,10 @@ openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096 -out secrets/jwt_pr
 openssl rsa -in secrets/jwt_private.pem -pubout -out secrets/jwt_public.pem
 ```
 
-2. 📝 Create `.env` with IdP + JWT settings
+2. 📝 Create `.env` with service settings
 
 ```bash
+# Server (HTTP + OAuth/JWT)
 LLAMERO_SERVER_ADDRESS=:8080
 LLAMERO_SERVER_EXTERNAL_URL=http://localhost:8080
 
@@ -41,15 +42,36 @@ LLAMERO_OAUTH_REDIRECT_URL=http://localhost:8080/auth/callback
 LLAMERO_OAUTH_SCOPES=openid,email,profile
 
 LLAMERO_JWT_ISSUER=llamero
+LLAMERO_JWT_AUDIENCE=ollama-clients
 LLAMERO_JWT_SIGNING_METHOD=EdDSA                 # or RS256
 LLAMERO_JWT_PRIVATE_KEY_PATH=secrets/jwt_private.pem
 LLAMERO_JWT_PUBLIC_KEY_PATH=secrets/jwt_public.pem
 LLAMERO_JWT_TTL=1h
 
 LLAMERO_ROLE_GROUPS=admin=admins;user=users       # maps IdP groups -> roles
+
+# Database (server + worker)
+LLAMERO_POSTGRES_HOST=postgres
+LLAMERO_POSTGRES_PORT=5432
+LLAMERO_POSTGRES_USER=llamero
+LLAMERO_POSTGRES_PASSWORD=llamero
+LLAMERO_POSTGRES_DBNAME=llamero
+LLAMERO_POSTGRES_SSLMODE=disable
+LLAMERO_MIGRATIONS_DIR=data/sql/migrations
+
+# Redis + background jobs (server + worker + scheduler)
+LLAMERO_REDIS_ADDR=redis:6379
+LLAMERO_REDIS_USERNAME=
+LLAMERO_REDIS_PASSWORD=
+LLAMERO_REDIS_DB=0
+LLAMERO_WORKER_CONCURRENCY=5       # worker only
+LLAMERO_SCHEDULER_PING_SPEC=@every 5m # scheduler only
+
+# Static backends (server)
+LLAMERO_BACKENDS_FILE=config/backends.yaml
 ```
 
-Defaults in `docker-compose.yml` wire up Postgres, Redis, Ollama, Nginx. Adjust `config/backends.yaml` (LLM endpoints) and `config/roles.yaml` (scope sets) if needed.
+Worker and scheduler ignore the OAuth/JWT values above—they only need the Postgres/Redis/job settings. Defaults in `docker-compose.yml` wire up Postgres, Redis, Ollama, Nginx. Adjust `config/backends.yaml` (LLM endpoints) and `config/roles.yaml` (scope sets) if needed.
 
 3. 🚀 Launch the stack
 

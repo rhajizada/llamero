@@ -31,7 +31,7 @@ func main() {
 }
 
 func run() error {
-	cfg, err := config.LoadServer()
+	cfg, err := config.LoadWorker()
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
@@ -74,7 +74,7 @@ func (e *workerEnvironment) addCloser(fn func()) {
 	e.closers = append(e.closers, fn)
 }
 
-func newWorkerEnvironment(ctx context.Context, cfg *config.ServerConfig) (*workerEnvironment, error) {
+func newWorkerEnvironment(ctx context.Context, cfg *config.WorkerConfig) (*workerEnvironment, error) {
 	pool, err := prepareDatabase(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -112,7 +112,7 @@ func newWorkerEnvironment(ctx context.Context, cfg *config.ServerConfig) (*worke
 	return env, nil
 }
 
-func prepareDatabase(ctx context.Context, cfg *config.ServerConfig) (*pgxpool.Pool, error) {
+func prepareDatabase(ctx context.Context, cfg *config.WorkerConfig) (*pgxpool.Pool, error) {
 	dsn := cfg.Database.Postgres.DSN()
 	if err := db.Migrate(ctx, dsn, cfg.Database.MigrationsDir); err != nil {
 		return nil, fmt.Errorf("migrate database: %w", err)
