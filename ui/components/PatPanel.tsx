@@ -217,70 +217,72 @@ export const PatPanel = () => {
           New token
         </button>
       </header>
-      <div className="grid gap-6 lg:grid-cols-[3fr,2fr]">
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-border bg-background/60">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="text-muted-foreground">
-                  <th className="px-4 py-3 font-normal">Name</th>
-                  <th className="px-4 py-3 font-normal">Scopes</th>
-                  <th className="px-4 py-3 font-normal">Expires</th>
-                  <th className="px-4 py-3 font-normal">Status</th>
-                  <th className="px-4 py-3 font-normal text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tokens.length === 0 ? (
-                  <tr>
-                    <td
-                      className="px-4 py-6 text-center text-muted-foreground"
-                      colSpan={5}
-                    >
-                      {loading ? "Loading tokens…" : "No tokens yet"}
-                    </td>
+      <div className="grid min-w-0 gap-6 lg:grid-cols-[3fr,2fr]">
+        <div className="min-w-0 space-y-4">
+          <div className="w-full max-w-full overflow-hidden rounded-2xl border border-border bg-background/60">
+            <div className="w-full overflow-x-auto">
+              <table className="min-w-full table-auto text-left text-sm">
+                <thead>
+                  <tr className="text-muted-foreground">
+                    <th className="px-4 py-3 font-normal">Name</th>
+                    <th className="px-4 py-3 font-normal">Scopes</th>
+                    <th className="px-4 py-3 font-normal">Expires</th>
+                    <th className="px-4 py-3 font-normal">Status</th>
+                    <th className="px-4 py-3 font-normal text-right">Actions</th>
                   </tr>
-                ) : (
-                  tokens.map((item) => {
-                    const isRevoked = Boolean(item.revoked);
-                    const badgeClass = isRevoked
-                      ? "bg-destructive/20 text-destructive"
-                      : "bg-emerald-500/20 text-emerald-500";
-                    return (
-                      <tr key={item.id} className="border-t border-border/60">
-                        <td className="px-4 py-3 font-medium">
-                          {item.name || "—"}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-muted-foreground">
-                          {(item.scopes || []).join(", ") || "default"}
-                        </td>
-                        <td className="px-4 py-3 text-xs">
-                          {formatDate(item.expires_at)}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`rounded-full px-2 py-1 text-xs font-semibold ${badgeClass}`}
-                          >
-                            {isRevoked ? "revoked" : "active"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          {isRevoked ? null : (
-                            <button
-                              type="button"
-                              className="text-xs tracking-wide text-destructive hover:underline"
-                              onClick={() => setTokenToRevoke(item.id ?? null)}
+                </thead>
+                <tbody>
+                  {tokens.length === 0 ? (
+                    <tr>
+                      <td
+                        className="px-4 py-6 text-center text-muted-foreground"
+                        colSpan={5}
+                      >
+                        {loading ? "Loading tokens…" : "No tokens yet"}
+                      </td>
+                    </tr>
+                  ) : (
+                    tokens.map((item) => {
+                      const isRevoked = Boolean(item.revoked);
+                      const badgeClass = isRevoked
+                        ? "bg-destructive/20 text-destructive"
+                        : "bg-emerald-500/20 text-emerald-500";
+                      return (
+                        <tr key={item.id} className="border-t border-border/60">
+                          <td className="px-4 py-3 font-medium">
+                            {item.name || "—"}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground">
+                            {(item.scopes || []).join(", ") || "default"}
+                          </td>
+                          <td className="px-4 py-3 text-xs">
+                            {formatDate(item.expires_at)}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`rounded-full px-2 py-1 text-xs font-semibold ${badgeClass}`}
                             >
-                              Revoke
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                              {isRevoked ? "revoked" : "active"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            {isRevoked ? null : (
+                              <button
+                                type="button"
+                                className="text-xs tracking-wide text-destructive hover:underline"
+                                onClick={() => setTokenToRevoke(item.id ?? null)}
+                              >
+                                Revoke
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
           {availableScopeRows.length ? <></> : null}
           {error ? (
