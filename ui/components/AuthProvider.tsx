@@ -3,7 +3,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { User } from "@/lib/api/data-contracts";
 import { createApiClient } from "@/lib/api-client";
-import { API_BASE_URL } from "@/lib/env";
 import { clearStoredAuth, loadStoredAuth, persistAuth } from "@/lib/auth-storage";
 import { decodeJwt, type JwtClaims } from "@/lib/jwt";
 
@@ -22,12 +21,6 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
-
-const joinUrl = (base: string, path: string) => {
-  if (!base) return path;
-  const normalized = base.endsWith("/") ? base.slice(0, -1) : base;
-  return `${normalized}${path}`;
-};
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
@@ -66,7 +59,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const login = useCallback(() => {
     if (typeof window === "undefined") return;
-    window.location.href = joinUrl(API_BASE_URL, "/auth/login");
+    window.location.href = "/auth/login";
   }, []);
 
   const refreshProfile = useCallback(async () => {

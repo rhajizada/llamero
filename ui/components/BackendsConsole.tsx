@@ -2,7 +2,6 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createApiClient } from "@/lib/api-client";
-import { API_BASE_URL } from "@/lib/env";
 import { useAuth } from "@/components/AuthProvider";
 import type { Backend } from "@/lib/api/data-contracts";
 
@@ -56,13 +55,6 @@ interface ActionRequest {
 }
 
 const streamingActions = new Set<AdminAction>(["pull", "push", "create", "copy"]);
-
-const joinApiPath = (path: string) => {
-  const base = API_BASE_URL?.replace(/\/$/, "");
-  if (!base) return path;
-  if (path.startsWith("http")) return path;
-  return `${base}${path}`;
-};
 
 const buildActionRequest = (
   action: AdminAction,
@@ -242,7 +234,7 @@ export const BackendsConsole = () => {
 
   const executeStandardRequest = useCallback(
     async (request: ActionRequest) => {
-      const response = await fetch(joinApiPath(request.path), createRequestInit(request));
+      const response = await fetch(request.path, createRequestInit(request));
       const text = await response.text();
       if (!response.ok) {
         throw new Error(text || response.statusText);
@@ -260,7 +252,7 @@ export const BackendsConsole = () => {
 
   const executeStreamingRequest = useCallback(
     async (request: ActionRequest) => {
-      const response = await fetch(joinApiPath(request.path), createRequestInit(request));
+      const response = await fetch(request.path, createRequestInit(request));
       if (!response.ok) {
         const text = await response.text();
         throw new Error(text || response.statusText);
