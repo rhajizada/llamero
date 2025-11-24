@@ -182,7 +182,7 @@ func (h *Handler) forwardLLMRequest(w http.ResponseWriter, r *http.Request, mode
 	defer resp.Body.Close()
 
 	copyHeaders(w.Header(), resp.Header)
-	removeHopHeaders(w.Header())
+	stripHopHeaders(w.Header())
 	w.WriteHeader(resp.StatusCode)
 	if _, copyErr := io.Copy(w, resp.Body); copyErr != nil {
 		h.logger.ErrorContext(req.Context(), "write proxied body", "err", copyErr)
@@ -212,9 +212,7 @@ func (h *Handler) proxyToBackend(r *http.Request, route service.BackendRoute, bo
 	}
 
 	copyHeaders(req.Header, r.Header)
-	removeHopHeaders(req.Header)
-	req.Header.Del("Authorization")
-	req.Header.Del("Content-Length")
+	stripProxyHeaders(req.Header)
 	applyForwardHeaders(req, r)
 
 	return h.client.Do(req)
@@ -236,9 +234,7 @@ func (h *Handler) proxyBackendGET(r *http.Request, route service.BackendRoute, p
 		return nil, err
 	}
 	copyHeaders(req.Header, r.Header)
-	removeHopHeaders(req.Header)
-	req.Header.Del("Authorization")
-	req.Header.Del("Content-Length")
+	stripProxyHeaders(req.Header)
 	applyForwardHeaders(req, r)
 	return h.client.Do(req)
 }
@@ -268,8 +264,8 @@ func copyHeaders(dst, src http.Header) {
 	}
 }
 
-func removeHopHeaders(h http.Header) {
-	for _, header := range []string{
+func stripHopHeaders(h http.Header) {
+	hopHeaders := []string{
 		"Connection",
 		"Proxy-Connection",
 		"Keep-Alive",
@@ -279,7 +275,34 @@ func removeHopHeaders(h http.Header) {
 		"Trailer",
 		"Transfer-Encoding",
 		"Upgrade",
-	} {
+	}
+	for _, header := range hopHeaders {
+		h.Del(header)
+	}
+}
+
+func stripProxyHeaders(h http.Header) {
+	proxyStripHeaders := []string{
+		"Connection",
+		"Proxy-Connection",
+		"Keep-Alive",
+		"Proxy-Authenticate",
+		"Proxy-Authorization",
+		"TE",
+		"Trailer",
+		"Transfer-Encoding",
+		"Upgrade",
+		"Origin",
+		"Referer",
+		"Sec-Fetch-Dest",
+		"Sec-Fetch-Mode",
+		"Sec-Fetch-Site",
+		"Sec-Fetch-User",
+		"Authorization",
+		"Authentication",
+		"Content-Length",
+	}
+	for _, header := range proxyStripHeaders {
 		h.Del(header)
 	}
 }

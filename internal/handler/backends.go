@@ -239,7 +239,7 @@ func (h *Handler) handleBackendProxyWithBody(
 	defer resp.Body.Close()
 
 	copyHeaders(w.Header(), resp.Header)
-	removeHopHeaders(w.Header())
+	stripHopHeaders(w.Header())
 	w.WriteHeader(resp.StatusCode)
 	if _, copyErr := io.Copy(w, resp.Body); copyErr != nil {
 		h.logger.ErrorContext(req.Context(), "write backend mutation response", "backend_id", backendID, "err", copyErr)
@@ -291,7 +291,7 @@ func (h *Handler) handleBackendGET(w http.ResponseWriter, r *http.Request, backe
 	defer resp.Body.Close()
 
 	copyHeaders(w.Header(), resp.Header)
-	removeHopHeaders(w.Header())
+	stripHopHeaders(w.Header())
 	w.WriteHeader(resp.StatusCode)
 	if _, copyErr := io.Copy(w, resp.Body); copyErr != nil {
 		h.logger.ErrorContext(req.Context(), "write backend get response", "backend_id", backendID, "err", copyErr)
@@ -319,9 +319,7 @@ func (h *Handler) proxyBackendWithBody(
 		return nil, err
 	}
 	copyHeaders(req.Header, r.Header)
-	removeHopHeaders(req.Header)
-	req.Header.Del("Authorization")
-	req.Header.Del("Content-Length")
+	stripProxyHeaders(req.Header)
 	applyForwardHeaders(req, r)
 	return h.client.Do(req)
 }
