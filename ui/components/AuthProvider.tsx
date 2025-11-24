@@ -5,6 +5,8 @@ import type { User } from "@/lib/api/data-contracts";
 import { createApiClient } from "@/lib/api-client";
 import { clearStoredAuth, loadStoredAuth, persistAuth } from "@/lib/auth-storage";
 import { decodeJwt, type JwtClaims } from "@/lib/jwt";
+import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/error-message";
 
 interface AuthContextValue {
   token: string | null;
@@ -77,7 +79,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         logout();
         setError("Session expired. Please sign in again.");
       } else {
-        setError("Unable to load profile");
+        const message = getErrorMessage(err, "Unable to load profile");
+        setError(message);
+        toast.error(message);
       }
     } finally {
       setLoading(false);

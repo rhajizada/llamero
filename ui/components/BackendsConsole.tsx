@@ -4,6 +4,8 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "re
 import { createApiClient } from "@/lib/api-client";
 import { useAuth } from "@/components/AuthProvider";
 import type { Backend } from "@/lib/api/data-contracts";
+import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/error-message";
 
 const actionLabels = {
   ps: "List running models",
@@ -200,7 +202,9 @@ export const BackendsConsole = () => {
       });
     } catch (err) {
       console.error("load backends", err);
-      setError("Unable to load backends");
+      const message = getErrorMessage(err, "Unable to load backends");
+      setError(message);
+      toast.error(message);
     } finally {
       setListLoading(false);
     }
@@ -295,8 +299,9 @@ export const BackendsConsole = () => {
         const resp = await api.backendsTagsList(selectedBackend);
         setResult(JSON.stringify(resp.data, null, 2));
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Action failed";
+        const message = getErrorMessage(err, "Action failed");
         setResult(message);
+        toast.error(message || "Unable to load models for backend");
       } finally {
         setLoading(false);
         setIsStreaming(false);
@@ -321,8 +326,9 @@ export const BackendsConsole = () => {
       }
     } catch (err) {
       console.error("backend action", err);
-      const message = err instanceof Error ? err.message : "Action failed";
+      const message = getErrorMessage(err, "Action failed");
       setResult(message);
+      toast.error("Action failed", { description: message });
     } finally {
       setLoading(false);
       setIsStreaming(false);

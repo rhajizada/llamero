@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { createApiClient } from "@/lib/api-client";
 import { useAuth } from "@/components/AuthProvider";
+import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/error-message";
 import type { Model, ModelList } from "@/lib/api/data-contracts";
 
 const formatDate = (value?: string | number) => {
@@ -38,7 +40,9 @@ export const ModelsPanel = () => {
         setModels(list);
       } catch (err) {
         console.error("load models", err);
-        setError("Unable to load models");
+        const message = getErrorMessage(err, "Unable to load models");
+        setError(message);
+        toast.error(message);
       } finally {
         setLoading(false);
       }

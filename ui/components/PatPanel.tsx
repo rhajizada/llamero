@@ -4,6 +4,8 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { createApiClient } from "@/lib/api-client";
 import { TokenExpiryPicker } from "@/components/TokenExpiryPicker";
 import { useAuth } from "@/components/AuthProvider";
+import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/error-message";
 import {
   Dialog,
   DialogContent,
@@ -96,7 +98,9 @@ export const PatPanel = () => {
       setTokens(response.data ?? []);
     } catch (err) {
       console.error("load tokens", err);
-      setError("Unable to load personal access tokens");
+      const message = getErrorMessage(err, "Unable to load personal access tokens");
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -137,7 +141,8 @@ export const PatPanel = () => {
       await refreshTokens();
     } catch (err) {
       console.error("create token", err);
-      setError("Unable to issue token");
+      const message = getErrorMessage(err, "Unable to issue token");
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -151,7 +156,8 @@ export const PatPanel = () => {
       await refreshTokens();
     } catch (err) {
       console.error("delete token", err);
-      setError("Unable to revoke token");
+      const message = getErrorMessage(err, "Unable to revoke token");
+      toast.error(message);
     }
   };
 
