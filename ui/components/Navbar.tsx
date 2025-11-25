@@ -4,9 +4,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "./AuthProvider";
 import { ThemeToggle } from "./ThemeToggle";
+import { useTheme } from "./ThemeProvider";
+import { cn } from "@/lib/utils";
 
 export const Navbar = () => {
   const { isAuthenticated, profile, claims, login, logout } = useAuth();
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
   const isAdmin = claims?.role === "admin";
 
   return (
@@ -14,12 +18,15 @@ export const Navbar = () => {
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 lg:px-6">
         <Link href="/" className="flex items-center gap-4">
           <Image
-            src="/assets/brand/logo.png"
+            src="/assets/icons/favicons/icon-1024.png"
             alt="Llamero"
             width={48}
             height={48}
             priority
-            className="rounded-2xl saturate-0 brightness-200"
+            className={cn(
+              "border-0 rounded-2xl outline-none",
+              isDark && "invert",
+            )}
           />
           <div className="flex flex-col leading-tight">
             <span className="text-lg font-semibold tracking-tight">
