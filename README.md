@@ -91,3 +91,12 @@ go run ./cmd/server
 ```
 
 Migrations auto-run on startup from `data/sql/migrations`.
+
+## 🔌 OpenAI-compatible clients
+
+Llamero exposes OpenAI-style routes under `/api`, so CLI/SDK clients can point at it directly. Issue a token that has at least `models:list` and `llm:*` scopes, then set:
+
+```bash
+export OPENAI_API_TOKEN=
+export OPENAI_API_BASE=http://localhost:8080/api
+```
