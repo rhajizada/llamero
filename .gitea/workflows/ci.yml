@@ -46,7 +46,7 @@ jobs:
       - name: Set up Docker
         uses: docker/setup-buildx-action@v3
 
-      - name: Build ${{ matrix.app }}
+      - name: Build image
         uses: docker/build-push-action@v6
         with:
           push: false
