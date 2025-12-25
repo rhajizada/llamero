@@ -30,3 +30,26 @@ jobs:
         uses: golangci/golangci-lint-action@v8
         with:
           args: --timeout 5m
+
+  build-images:
+    name: Build image
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        app: [server, worker, scheduler, ui]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build ${{ matrix.app }}
+        uses: docker/build-push-action@v6
+        with:
+          push: false
+          context: .
+          file: ./docker/${{ matrix.app }}/Dockerfile
+          build-args: ${{ matrix.app == 'ui' && 'NEXT_TELEMETRY_DISABLED=1' || '' }}
