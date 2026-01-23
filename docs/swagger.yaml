@@ -36,26 +36,79 @@ definitions:
     type: object
   BackendCreateModelRequest:
     properties:
-      keep_alive:
+      adapters:
+        additionalProperties:
+          type: string
+        type: object
+      files:
+        additionalProperties:
+          type: string
+        type: object
+      from:
         type: string
+      info:
+        additionalProperties: {}
+        type: object
+      license: {}
+      messages:
+        items:
+          $ref: '#/definitions/BackendMessage'
+        type: array
       model:
         description: Name of the model to create.
         type: string
-      modelfile:
-        description: Inline Modelfile contents.
+      name:
         type: string
-      path:
-        description: Optional path to an existing Modelfile.
+      parameters:
+        additionalProperties: {}
+        type: object
+      parser:
+        type: string
+      quantization:
         type: string
       quantize:
         description: Quantization target, e.g. "Q4_0".
         type: string
+      remote_host:
+        type: string
+      renderer:
+        type: string
+      requires:
+        type: string
+      stream:
+        type: boolean
+      system:
+        type: string
+      template:
+        type: string
     type: object
   BackendDeleteModelRequest:
     properties:
-      force:
-        type: boolean
       model:
+        type: string
+    type: object
+  BackendMessage:
+    properties:
+      content:
+        type: string
+      images:
+        items:
+          items:
+            format: int32
+            type: integer
+          type: array
+        type: array
+      role:
+        type: string
+      thinking:
+        type: string
+      tool_call_id:
+        type: string
+      tool_calls:
+        items:
+          $ref: '#/definitions/BackendToolCall'
+        type: array
+      tool_name:
         type: string
     type: object
   BackendOperationResponse:
@@ -127,6 +180,22 @@ definitions:
         items:
           $ref: '#/definitions/OllamaTag'
         type: array
+    type: object
+  BackendToolCall:
+    properties:
+      function:
+        $ref: '#/definitions/BackendToolCallFunction'
+      id:
+        type: string
+    type: object
+  BackendToolCallFunction:
+    properties:
+      arguments:
+        $ref: '#/definitions/github_com_rhajizada_llamero_internal_models.BackendToolCallFunctionArguments'
+      index:
+        type: integer
+      name:
+        type: string
     type: object
   BackendVersionResponse:
     properties:
@@ -583,6 +652,9 @@ definitions:
       updated_at:
         type: string
     type: object
+  github_com_rhajizada_llamero_internal_models.BackendToolCallFunctionArguments:
+    additionalProperties: {}
+    type: object
 info:
   contact: {}
   description: Llamero control plane API.
@@ -633,7 +705,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/BackendOperationResponse'
+            type: string
         "400":
           description: Bad Request
           schema:
@@ -806,7 +878,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/BackendOperationResponse'
+            type: string
         "400":
           description: Bad Request
           schema:
@@ -1291,7 +1363,9 @@ paths:
         "204":
           description: No Content
           schema:
-            type: string
+            additionalProperties:
+              type: string
+            type: object
         "400":
           description: Bad Request
           schema:

@@ -4,12 +4,66 @@ import "time"
 
 // BackendCreateModelRequest matches Ollama's create API payload.
 type BackendCreateModelRequest struct {
-	Model     string `json:"model"`               // Name of the model to create.
-	Modelfile string `json:"modelfile,omitempty"` // Inline Modelfile contents.
-	Path      string `json:"path,omitempty"`      // Optional path to an existing Modelfile.
-	Quantize  string `json:"quantize,omitempty"`  // Quantization target, e.g. "Q4_0".
-	KeepAlive string `json:"keep_alive,omitempty"`
+	Model string `json:"model"` // Name of the model to create.
+
+	Stream *bool `json:"stream,omitempty"`
+
+	Quantize string `json:"quantize,omitempty"` // Quantization target, e.g. "Q4_0".
+	From     string `json:"from,omitempty"`
+
+	RemoteHost string `json:"remote_host,omitempty"`
+
+	Files    map[string]string `json:"files,omitempty"`
+	Adapters map[string]string `json:"adapters,omitempty"`
+
+	Template string `json:"template,omitempty"`
+
+	License any `json:"license,omitempty"`
+
+	System     string         `json:"system,omitempty"`
+	Parameters map[string]any `json:"parameters,omitempty"`
+
+	Messages []BackendMessage `json:"messages,omitempty"`
+
+	Renderer string `json:"renderer,omitempty"`
+	Parser   string `json:"parser,omitempty"`
+	Requires string `json:"requires,omitempty"`
+
+	Info map[string]any `json:"info,omitempty"`
+
+	Name         string `json:"name"`
+	Quantization string `json:"quantization,omitempty"`
 } // @name BackendCreateModelRequest
+
+// BackendImageData represents raw image bytes (base64-encoded in JSON).
+type BackendImageData []byte
+
+// BackendToolCall describes a tool call associated with a message.
+type BackendToolCall struct {
+	ID       string                  `json:"id,omitempty"`
+	Function BackendToolCallFunction `json:"function"`
+} // @name BackendToolCall
+
+// BackendToolCallFunction describes a callable tool in a tool call.
+type BackendToolCallFunction struct {
+	Index     int                              `json:"index"`
+	Name      string                           `json:"name"`
+	Arguments BackendToolCallFunctionArguments `json:"arguments"`
+} // @name BackendToolCallFunction
+
+// BackendToolCallFunctionArguments holds tool call arguments.
+type BackendToolCallFunctionArguments map[string]any
+
+// BackendMessage mirrors Ollama's chat message schema.
+type BackendMessage struct {
+	Role       string             `json:"role"`
+	Content    string             `json:"content"`
+	Thinking   string             `json:"thinking,omitempty"`
+	Images     []BackendImageData `json:"images,omitempty"`
+	ToolCalls  []BackendToolCall  `json:"tool_calls,omitempty"`
+	ToolName   string             `json:"tool_name,omitempty"`
+	ToolCallID string             `json:"tool_call_id,omitempty"`
+} // @name BackendMessage
 
 // BackendCopyModelRequest matches Ollama's copy API payload.
 type BackendCopyModelRequest struct {
@@ -34,7 +88,6 @@ type BackendPushModelRequest struct {
 // BackendDeleteModelRequest matches Ollama's delete API payload.
 type BackendDeleteModelRequest struct {
 	Model string `json:"model"`
-	Force bool   `json:"force,omitempty"`
 } // @name BackendDeleteModelRequest
 
 // BackendShowModelRequest matches Ollama's show API payload.

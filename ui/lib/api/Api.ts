@@ -72,7 +72,7 @@ export class Api<
     request: BackendCopyModelRequest,
     params: RequestParams = {},
   ) =>
-    this.request<BackendOperationResponse, Record<string, string>>({
+    this.request<string, Record<string, string>>({
       path: `/api/backends/${backendId}/copy`,
       method: "POST",
       body: request,
@@ -158,7 +158,7 @@ export class Api<
     request: BackendPullModelRequest,
     params: RequestParams = {},
   ) =>
-    this.request<BackendOperationResponse, Record<string, string>>({
+    this.request<string, Record<string, string>>({
       path: `/api/backends/${backendId}/pull`,
       method: "POST",
       body: request,
@@ -427,7 +427,7 @@ export class Api<
    * @secure
    */
   profileTokensDelete = (tokenId: string, params: RequestParams = {}) =>
-    this.request<string, Record<string, string>>({
+    this.request<Record<string, string>, Record<string, string>>({
       path: `/api/profile/tokens/${tokenId}`,
       method: "DELETE",
       secure: true,
