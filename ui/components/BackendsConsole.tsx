@@ -298,13 +298,14 @@ export const BackendsConsole = () => {
       if (!response.ok) {
         throw new Error(text || response.statusText);
       }
-      let printable = text || response.statusText;
-      try {
-        printable = text
-          ? JSON.stringify(JSON.parse(text), null, 2)
-          : response.statusText;
-      } catch {
-        printable = text || response.statusText;
+      const contentType = response.headers.get("content-type") ?? "";
+      let printable = text || response.statusText || `HTTP ${response.status}`;
+      if (text && contentType.includes("application/json")) {
+        try {
+          printable = JSON.stringify(JSON.parse(text), null, 2);
+        } catch {
+          printable = text || response.statusText || `HTTP ${response.status}`;
+        }
       }
       setResult(printable);
     },

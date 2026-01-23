@@ -90,7 +90,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/BackendOperationResponse"
+                            "type": "string"
                         }
                     },
                     "400": {
@@ -361,7 +361,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/BackendOperationResponse"
+                            "type": "string"
                         }
                     },
                     "400": {
@@ -1196,7 +1196,10 @@ const docTemplate = `{
                     "204": {
                         "description": "No Content",
                         "schema": {
-                            "type": "string"
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     },
                     "400": {

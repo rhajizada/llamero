@@ -705,7 +705,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/BackendOperationResponse'
+            type: string
         "400":
           description: Bad Request
           schema:
@@ -878,7 +878,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/BackendOperationResponse'
+            type: string
         "400":
           description: Bad Request
           schema:
@@ -1363,7 +1363,9 @@ paths:
         "204":
           description: No Content
           schema:
-            type: string
+            additionalProperties:
+              type: string
+            type: object
         "400":
           description: Bad Request
           schema:

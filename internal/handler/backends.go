@@ -86,7 +86,7 @@ func (h *Handler) HandleBackendCreate(w http.ResponseWriter, r *http.Request) {
 // @Security BearerAuth
 // @Param backendID path string true "Backend ID"
 // @Param request body models.BackendCopyModelRequest true "Copy model payload"
-// @Success 200 {object} models.BackendOperationResponse
+// @Success 200 {string} string
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Failure 502 {object} map[string]string
@@ -103,7 +103,7 @@ func (h *Handler) HandleBackendCopy(w http.ResponseWriter, r *http.Request) {
 // @Security BearerAuth
 // @Param backendID path string true "Backend ID"
 // @Param request body models.BackendPullModelRequest true "Pull model payload"
-// @Success 200 {object} models.BackendOperationResponse
+// @Success 200 {string} string
 // @Failure 400 {object} map[string]string
 // @Failure 404 {object} map[string]string
 // @Failure 502 {object} map[string]string
