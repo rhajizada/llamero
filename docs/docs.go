@@ -1364,9 +1364,6 @@ const docTemplate = `{
         "BackendDeleteModelRequest": {
             "type": "object",
             "properties": {
-                "force": {
-                    "type": "boolean"
-                },
                 "model": {
                     "type": "string"
                 }

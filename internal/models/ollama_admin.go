@@ -88,7 +88,6 @@ type BackendPushModelRequest struct {
 // BackendDeleteModelRequest matches Ollama's delete API payload.
 type BackendDeleteModelRequest struct {
 	Model string `json:"model"`
-	Force bool   `json:"force,omitempty"`
 } // @name BackendDeleteModelRequest
 
 // BackendShowModelRequest matches Ollama's show API payload.

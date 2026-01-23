@@ -52,7 +52,6 @@ export interface BackendCreateModelRequest {
 }
 
 export interface BackendDeleteModelRequest {
-  force?: boolean;
   model?: string;
 }
 

@@ -51,7 +51,6 @@ interface BackendActionFields {
   quantize?: string;
   quantization?: string;
   stream?: string;
-  force?: boolean;
 }
 
 type StringFieldKey = Extract<
@@ -175,7 +174,6 @@ const buildActionRequest = (
         path: `/api/backends/${backendId}/delete`,
         body: {
           model: fields.model,
-          force: Boolean(fields.force),
         },
         requiresBackend: true,
       };
@@ -439,7 +437,6 @@ export const BackendsConsole = () => {
     }
   }, [action]);
 
-  const showForceToggle = action === "delete";
   const showStreamSelect = action === "create";
   const resultDisplay =
     result && result.length
@@ -594,22 +591,6 @@ export const BackendsConsole = () => {
                   )}
                 </div>
               ))}
-              {showForceToggle ? (
-                <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(fields.force)}
-                    onChange={(e) =>
-                      setFields((prev) => ({
-                        ...prev,
-                        force: e.target.checked,
-                      }))
-                    }
-                    className="h-4 w-4 rounded border border-border"
-                  />
-                  Force delete
-                </label>
-              ) : null}
               {showStreamSelect ? (
                 <div>
                   <label className="text-xs text-muted-foreground">

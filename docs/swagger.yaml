@@ -84,8 +84,6 @@ definitions:
     type: object
   BackendDeleteModelRequest:
     properties:
-      force:
-        type: boolean
       model:
         type: string
     type: object
