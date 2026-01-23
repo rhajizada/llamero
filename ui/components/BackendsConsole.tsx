@@ -1,6 +1,13 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createApiClient } from "@/lib/api-client";
 import { useAuth } from "@/components/AuthProvider";
 import type { Backend } from "@/lib/api/data-contracts";
@@ -27,16 +34,31 @@ interface BackendActionFields {
   model?: string;
   destination?: string;
   source?: string;
-  modelfile?: string;
+  from?: string;
+  remote_host?: string;
+  template?: string;
+  parameters?: string;
+  files?: string;
+  adapters?: string;
+  messages?: string;
+  license?: string;
   system?: string;
-  keep_alive?: string;
+  renderer?: string;
+  parser?: string;
+  requires?: string;
+  info?: string;
+  name?: string;
   quantize?: string;
+  quantization?: string;
+  stream?: string;
   force?: boolean;
 }
 
 type StringFieldKey = Extract<
   {
-    [K in keyof BackendActionFields]: BackendActionFields[K] extends string | undefined
+    [K in keyof BackendActionFields]: BackendActionFields[K] extends
+      | string
+      | undefined
       ? K
       : never;
   }[keyof BackendActionFields],
@@ -56,7 +78,28 @@ interface ActionRequest {
   requiresBackend?: boolean;
 }
 
-const streamingActions = new Set<AdminAction>(["pull", "push", "create", "copy"]);
+const streamingActions = new Set<AdminAction>([
+  "pull",
+  "push",
+  "create",
+  "copy",
+]);
+
+const parseJSONField = (value?: string, label = "Field") => {
+  if (!value || !value.trim()) return undefined;
+  try {
+    return JSON.parse(value);
+  } catch (err) {
+    throw new Error(`${label} must be valid JSON`);
+  }
+};
+
+const parseOptionalBool = (value?: string, label = "Field") => {
+  if (!value || value === "default") return undefined;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  throw new Error(`${label} must be true, false, or default`);
+};
 
 const buildActionRequest = (
   action: AdminAction,
@@ -96,9 +139,23 @@ const buildActionRequest = (
         path: `/api/backends/${backendId}/create`,
         body: {
           model: fields.model,
-          modelfile: fields.modelfile,
-          keep_alive: fields.keep_alive,
+          stream: parseOptionalBool(fields.stream, "Stream"),
           quantize: fields.quantize,
+          from: fields.from,
+          remote_host: fields.remote_host,
+          template: fields.template,
+          system: fields.system,
+          renderer: fields.renderer,
+          parser: fields.parser,
+          requires: fields.requires,
+          name: fields.name,
+          quantization: fields.quantization,
+          parameters: parseJSONField(fields.parameters, "Parameters"),
+          files: parseJSONField(fields.files, "Files"),
+          adapters: parseJSONField(fields.adapters, "Adapters"),
+          messages: parseJSONField(fields.messages, "Messages"),
+          license: parseJSONField(fields.license, "License"),
+          info: parseJSONField(fields.info, "Info"),
         },
         requiresBackend: true,
       };
@@ -245,7 +302,9 @@ export const BackendsConsole = () => {
       }
       let printable = text || response.statusText;
       try {
-        printable = text ? JSON.stringify(JSON.parse(text), null, 2) : response.statusText;
+        printable = text
+          ? JSON.stringify(JSON.parse(text), null, 2)
+          : response.statusText;
       } catch {
         printable = text || response.statusText;
       }
@@ -308,7 +367,15 @@ export const BackendsConsole = () => {
       }
       return;
     }
-    const request = buildActionRequest(action, selectedBackend, fields);
+    let request: ActionRequest;
+    try {
+      request = buildActionRequest(action, selectedBackend, fields);
+    } catch (err) {
+      const message = getErrorMessage(err, "Invalid request payload");
+      setError(message);
+      toast.error(message);
+      return;
+    }
     if (request.requiresBackend && !selectedBackend) {
       setError("Select a backend before running an action");
       return;
@@ -350,9 +417,22 @@ export const BackendsConsole = () => {
       case "create":
         return [
           { key: "model", label: "Model" },
-          { key: "modelfile", label: "Modelfile", textarea: true },
-          { key: "keep_alive", label: "Keep alive" },
+          { key: "from", label: "From model" },
           { key: "quantize", label: "Quantization" },
+          { key: "remote_host", label: "Remote host" },
+          { key: "template", label: "Template", textarea: true },
+          { key: "system", label: "System prompt", textarea: true },
+          { key: "parameters", label: "Parameters", textarea: true },
+          { key: "files", label: "Files", textarea: true },
+          { key: "adapters", label: "Adapters", textarea: true },
+          { key: "messages", label: "Messages", textarea: true },
+          { key: "license", label: "License", textarea: true },
+          { key: "renderer", label: "Renderer" },
+          { key: "parser", label: "Parser" },
+          { key: "requires", label: "Requires" },
+          { key: "info", label: "Info", textarea: true },
+          { key: "name", label: "Name (deprecated)" },
+          { key: "quantization", label: "Quantization (deprecated)" },
         ];
       default:
         return [];
@@ -360,6 +440,7 @@ export const BackendsConsole = () => {
   }, [action]);
 
   const showForceToggle = action === "delete";
+  const showStreamSelect = action === "create";
   const resultDisplay =
     result && result.length
       ? result
@@ -372,7 +453,9 @@ export const BackendsConsole = () => {
   return (
     <section className="rounded-3xl border border-border bg-card/50 p-6 shadow-sm">
       <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <h2 className="text-xl font-semibold text-foreground">Backend console</h2>
+        <h2 className="text-xl font-semibold text-foreground">
+          Backend console
+        </h2>
         <button
           type="button"
           onClick={fetchBackends}
@@ -388,7 +471,9 @@ export const BackendsConsole = () => {
       ) : null}
       <div className="space-y-6">
         <div className="rounded-2xl border border-border bg-background/70 p-4">
-          <h3 className="text-sm font-semibold text-foreground">Fleet status</h3>
+          <h3 className="text-sm font-semibold text-foreground">
+            Fleet status
+          </h3>
           <div className="mt-4 space-y-3">
             {backends.map((backend) => (
               <div
@@ -398,7 +483,9 @@ export const BackendsConsole = () => {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="text-base font-semibold">{backend.id}</p>
-                    <p className="text-xs text-muted-foreground">{backend.address || "no address"}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {backend.address || "no address"}
+                    </p>
                   </div>
                   <span
                     className={`rounded-full px-3 py-1 text-xs font-semibold ${backend.healthy ? "bg-emerald-500/20 text-emerald-500" : "bg-destructive/20 text-destructive"}`}
@@ -409,22 +496,30 @@ export const BackendsConsole = () => {
                 <dl className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                   <div>
                     <dt>Latency</dt>
-                    <dd className="font-semibold text-foreground">{formatLatency(backend.latency_ms)}</dd>
+                    <dd className="font-semibold text-foreground">
+                      {formatLatency(backend.latency_ms)}
+                    </dd>
                   </div>
                   <div>
                     <dt>Updated</dt>
-                    <dd className="font-semibold text-foreground">{formatUpdated(backend.updated_at)}</dd>
+                    <dd className="font-semibold text-foreground">
+                      {formatUpdated(backend.updated_at)}
+                    </dd>
                   </div>
                   <div className="col-span-2">
                     <dt>Loaded models</dt>
                     <dd className="text-foreground">
-                      {(backend.loaded_models || []).length ? backend.loaded_models?.join(", ") : "—"}
+                      {(backend.loaded_models || []).length
+                        ? backend.loaded_models?.join(", ")
+                        : "—"}
                     </dd>
                   </div>
                   <div className="col-span-2">
                     <dt>Available models</dt>
                     <dd className="text-foreground">
-                      {(backend.models || []).length ? backend.models?.join(", ") : "—"}
+                      {(backend.models || []).length
+                        ? backend.models?.join(", ")
+                        : "—"}
                     </dd>
                   </div>
                 </dl>
@@ -432,16 +527,16 @@ export const BackendsConsole = () => {
             ))}
             {backends.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                {listLoading ? "Discovering backends…" : "No backends registered"}
+                {listLoading
+                  ? "Discovering backends…"
+                  : "No backends registered"}
               </p>
             ) : null}
           </div>
         </div>
         <div className="space-y-4">
           <div className="rounded-2xl border border-border bg-background/70 p-4">
-            <label className="text-xs text-muted-foreground">
-              Backend
-            </label>
+            <label className="text-xs text-muted-foreground">Backend</label>
             <select
               value={selectedBackend}
               onChange={(e) => setSelectedBackend(e.target.value)}
@@ -515,6 +610,27 @@ export const BackendsConsole = () => {
                   Force delete
                 </label>
               ) : null}
+              {showStreamSelect ? (
+                <div>
+                  <label className="text-xs text-muted-foreground">
+                    Stream
+                  </label>
+                  <select
+                    value={fields.stream ?? "default"}
+                    onChange={(e) =>
+                      setFields((prev) => ({
+                        ...prev,
+                        stream: e.target.value,
+                      }))
+                    }
+                    className="mt-2 w-full rounded-xl border border-border bg-card/50 px-3 py-2 text-sm"
+                  >
+                    <option value="default">Default</option>
+                    <option value="true">True</option>
+                    <option value="false">False</option>
+                  </select>
+                </div>
+              ) : null}
               <button
                 type="submit"
                 disabled={loading}
@@ -525,7 +641,9 @@ export const BackendsConsole = () => {
             </form>
           </div>
           <div className="rounded-2xl border border-border bg-background/70 p-4">
-            <h3 className="text-sm font-semibold text-muted-foreground">Result</h3>
+            <h3 className="text-sm font-semibold text-muted-foreground">
+              Result
+            </h3>
             <pre
               ref={resultRef}
               className="mt-3 max-h-80 overflow-auto rounded-xl bg-black/80 p-4 text-xs text-white"

@@ -1294,23 +1294,69 @@ const docTemplate = `{
         "BackendCreateModelRequest": {
             "type": "object",
             "properties": {
-                "keep_alive": {
+                "adapters": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "files": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "from": {
                     "type": "string"
+                },
+                "info": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "license": {},
+                "messages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/BackendMessage"
+                    }
                 },
                 "model": {
                     "description": "Name of the model to create.",
                     "type": "string"
                 },
-                "modelfile": {
-                    "description": "Inline Modelfile contents.",
+                "name": {
                     "type": "string"
                 },
-                "path": {
-                    "description": "Optional path to an existing Modelfile.",
+                "parameters": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "parser": {
+                    "type": "string"
+                },
+                "quantization": {
                     "type": "string"
                 },
                 "quantize": {
                     "description": "Quantization target, e.g. \"Q4_0\".",
+                    "type": "string"
+                },
+                "remote_host": {
+                    "type": "string"
+                },
+                "renderer": {
+                    "type": "string"
+                },
+                "requires": {
+                    "type": "string"
+                },
+                "stream": {
+                    "type": "boolean"
+                },
+                "system": {
+                    "type": "string"
+                },
+                "template": {
                     "type": "string"
                 }
             }
@@ -1322,6 +1368,42 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "model": {
+                    "type": "string"
+                }
+            }
+        },
+        "BackendMessage": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "images": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                },
+                "role": {
+                    "type": "string"
+                },
+                "thinking": {
+                    "type": "string"
+                },
+                "tool_call_id": {
+                    "type": "string"
+                },
+                "tool_calls": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/BackendToolCall"
+                    }
+                },
+                "tool_name": {
                     "type": "string"
                 }
             }
@@ -1431,6 +1513,31 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/OllamaTag"
                     }
+                }
+            }
+        },
+        "BackendToolCall": {
+            "type": "object",
+            "properties": {
+                "function": {
+                    "$ref": "#/definitions/BackendToolCallFunction"
+                },
+                "id": {
+                    "type": "string"
+                }
+            }
+        },
+        "BackendToolCallFunction": {
+            "type": "object",
+            "properties": {
+                "arguments": {
+                    "$ref": "#/definitions/github_com_rhajizada_llamero_internal_models.BackendToolCallFunctionArguments"
+                },
+                "index": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
                 }
             }
         },
@@ -2130,6 +2237,10 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "github_com_rhajizada_llamero_internal_models.BackendToolCallFunctionArguments": {
+            "type": "object",
+            "additionalProperties": {}
         }
     },
     "securityDefinitions": {

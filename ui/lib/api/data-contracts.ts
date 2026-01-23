@@ -29,20 +29,41 @@ export interface BackendCopyModelRequest {
 }
 
 export interface BackendCreateModelRequest {
-  keep_alive?: string;
+  adapters?: Record<string, string>;
+  files?: Record<string, string>;
+  from?: string;
+  info?: Record<string, any>;
+  license?: any;
+  messages?: BackendMessage[];
   /** Name of the model to create. */
   model?: string;
-  /** Inline Modelfile contents. */
-  modelfile?: string;
-  /** Optional path to an existing Modelfile. */
-  path?: string;
+  name?: string;
+  parameters?: Record<string, any>;
+  parser?: string;
+  quantization?: string;
   /** Quantization target, e.g. "Q4_0". */
   quantize?: string;
+  remote_host?: string;
+  renderer?: string;
+  requires?: string;
+  stream?: boolean;
+  system?: string;
+  template?: string;
 }
 
 export interface BackendDeleteModelRequest {
   force?: boolean;
   model?: string;
+}
+
+export interface BackendMessage {
+  content?: string;
+  images?: number[][];
+  role?: string;
+  thinking?: string;
+  tool_call_id?: string;
+  tool_calls?: BackendToolCall[];
+  tool_name?: string;
 }
 
 export interface BackendOperationResponse {
@@ -87,6 +108,17 @@ export interface BackendShowModelResponse {
 
 export interface BackendTagsResponse {
   models?: OllamaTag[];
+}
+
+export interface BackendToolCall {
+  function?: BackendToolCallFunction;
+  id?: string;
+}
+
+export interface BackendToolCallFunction {
+  arguments?: GithubComRhajizadaLlameroInternalModelsBackendToolCallFunctionArguments;
+  index?: number;
+  name?: string;
 }
 
 export interface BackendVersionResponse {
@@ -341,3 +373,6 @@ export interface User {
   sub?: string;
   updated_at?: string;
 }
+
+export type GithubComRhajizadaLlameroInternalModelsBackendToolCallFunctionArguments =
+  Record<string, any>;
