@@ -87,6 +87,7 @@ func New(h *handler.Handler, authz *middleware.Authz) *Router {
 	r.Handle("/api/chat/completions", http.HandlerFunc(h.HandleChatCompletions), authz.Require("llm:chat"))
 	r.Handle("/api/completions", http.HandlerFunc(h.HandleCompletions), authz.Require("llm:chat"))
 	r.Handle("/api/embeddings", http.HandlerFunc(h.HandleEmbeddings), authz.Require("llm:embeddings"))
+	r.Handle("POST /api/responses", http.HandlerFunc(h.HandleResponsesCreate), authz.Require("llm:chat"))
 	return r
 }
 

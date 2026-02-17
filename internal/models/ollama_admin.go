@@ -52,7 +52,7 @@ type BackendToolCallFunction struct {
 } // @name BackendToolCallFunction
 
 // BackendToolCallFunctionArguments holds tool call arguments.
-type BackendToolCallFunctionArguments map[string]any
+type BackendToolCallFunctionArguments map[string]any // @name BackendToolCallFunctionArguments
 
 // BackendMessage mirrors Ollama's chat message schema.
 type BackendMessage struct {

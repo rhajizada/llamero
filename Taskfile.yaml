@@ -7,9 +7,14 @@ dotenv: [".env"]
 
 tasks:
   fmt:
-    desc: Run gofumpt on Go files
+    desc: Format go files
     cmds:
-      - go tool gofumpt -w ./cmd ./internal ./docs
+      - golangci-lint fmt ./...
+
+  lint:
+    desc: Lint go files
+    cmds:
+      - golangci-lint run ./...
 
   sqlc:
     desc: Generate repository code via sqlc

@@ -115,10 +115,12 @@ export interface BackendToolCall {
 }
 
 export interface BackendToolCallFunction {
-  arguments?: GithubComRhajizadaLlameroInternalModelsBackendToolCallFunctionArguments;
+  arguments?: BackendToolCallFunctionArguments;
   index?: number;
   name?: string;
 }
+
+export type BackendToolCallFunctionArguments = Record<string, any>;
 
 export interface BackendVersionResponse {
   version?: string;
@@ -342,6 +344,112 @@ export interface ResponseFormatSpec {
   type?: string;
 }
 
+export interface ResponsesCreateRequest {
+  conversation?: any;
+  include?: string[];
+  input?: any;
+  instructions?: string;
+  max_output_tokens?: number;
+  model?: string;
+  previous_response_id?: string;
+  reasoning?: ResponsesReasoningSpec;
+  stream?: boolean;
+  temperature?: number;
+  text?: ResponsesTextConfig;
+  tools?: ResponsesTool[];
+  top_p?: number;
+  truncation?: string;
+}
+
+export interface ResponsesError {
+  code?: string;
+  message?: string;
+}
+
+export interface ResponsesIncompleteDetails {
+  reason?: string;
+}
+
+export interface ResponsesInputUsageDetails {
+  cached_tokens?: number;
+}
+
+export interface ResponsesOutputContent {
+  annotations?: any[];
+  logprobs?: any[];
+  text?: string;
+  type?: string;
+}
+
+export interface ResponsesOutputItem {
+  arguments?: string;
+  call_id?: string;
+  content?: ResponsesOutputContent[];
+  encrypted_content?: string;
+  id?: string;
+  name?: string;
+  role?: string;
+  status?: string;
+  summary?: ResponsesReasoningSummary[];
+  type?: string;
+}
+
+export interface ResponsesOutputUsageDetails {
+  reasoning_tokens?: number;
+}
+
+export interface ResponsesReasoningSpec {
+  effort?: string;
+  summary?: string;
+}
+
+export interface ResponsesReasoningSummary {
+  text?: string;
+  type?: string;
+}
+
+export interface ResponsesResponse {
+  completed_at?: number;
+  created_at?: number;
+  error?: ResponsesError;
+  id?: string;
+  incomplete_details?: ResponsesIncompleteDetails;
+  instructions?: any;
+  model?: string;
+  object?: string;
+  output?: ResponsesOutputItem[];
+  previous_response_id?: string;
+  status?: string;
+  usage?: ResponsesUsage;
+}
+
+export interface ResponsesTextConfig {
+  format?: ResponsesTextFormat;
+}
+
+export interface ResponsesTextFormat {
+  name?: string;
+  schema?: any;
+  strict?: boolean;
+  type?: string;
+}
+
+export interface ResponsesTool {
+  description?: string;
+  name?: string;
+  parameters?: Record<string, any>;
+  strict?: boolean;
+  type?: string;
+}
+
+export interface ResponsesUsage {
+  input_tokens?: number;
+  input_tokens_details?: ResponsesInputUsageDetails;
+  output_tokens?: number;
+  output_tokens_details?: ResponsesOutputUsageDetails;
+  total_tokens?: number;
+}
+
 export interface ToolCall {
   function?: ToolCallFunction;
   id?: string;
@@ -372,6 +480,3 @@ export interface User {
   sub?: string;
   updated_at?: string;
 }
-
-export type GithubComRhajizadaLlameroInternalModelsBackendToolCallFunctionArguments =
-  Record<string, any>;

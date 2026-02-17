@@ -34,6 +34,8 @@ import {
   PersonalAccessToken,
   PersonalAccessTokenResponse,
   ProcessModelResponse,
+  ResponsesCreateRequest,
+  ResponsesResponse,
   User,
 } from "./data-contracts";
 import { ContentType, HttpClient, RequestParams } from "./http-client";
@@ -250,7 +252,7 @@ export class Api<
   /**
    * No description
    *
-   * @tags LLM
+   * @tags OpenAI
    * @name ChatCompletionsCreate
    * @summary Proxy chat completions
    * @request POST:/api/chat/completions
@@ -272,7 +274,7 @@ export class Api<
   /**
    * No description
    *
-   * @tags LLM
+   * @tags OpenAI
    * @name CompletionsCreate
    * @summary Proxy legacy completions
    * @request POST:/api/completions
@@ -294,7 +296,7 @@ export class Api<
   /**
    * No description
    *
-   * @tags LLM
+   * @tags OpenAI
    * @name EmbeddingsCreate
    * @summary Proxy embeddings
    * @request POST:/api/embeddings
@@ -313,7 +315,7 @@ export class Api<
   /**
    * No description
    *
-   * @tags Models
+   * @tags OpenAI
    * @name ModelsList
    * @summary List available models
    * @request GET:/api/models
@@ -330,7 +332,7 @@ export class Api<
   /**
    * No description
    *
-   * @tags Models
+   * @tags OpenAI
    * @name ModelsDetail
    * @summary Get metadata for a single model
    * @request GET:/api/models/{modelID}
@@ -427,10 +429,32 @@ export class Api<
    * @secure
    */
   profileTokensDelete = (tokenId: string, params: RequestParams = {}) =>
-    this.request<Record<string, string>, Record<string, string>>({
+    this.request<string, Record<string, string>>({
       path: `/api/profile/tokens/${tokenId}`,
       method: "DELETE",
       secure: true,
+      ...params,
+    });
+  /**
+   * No description
+   *
+   * @tags OpenAI
+   * @name ResponsesCreate
+   * @summary Create a model response
+   * @request POST:/api/responses
+   * @secure
+   */
+  responsesCreate = (
+    request: ResponsesCreateRequest,
+    params: RequestParams = {},
+  ) =>
+    this.request<ResponsesResponse, Record<string, string>>({
+      path: `/api/responses`,
+      method: "POST",
+      body: request,
+      secure: true,
+      type: ContentType.Json,
+      format: "json",
       ...params,
     });
 }

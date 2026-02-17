@@ -191,11 +191,14 @@ definitions:
   BackendToolCallFunction:
     properties:
       arguments:
-        $ref: '#/definitions/github_com_rhajizada_llamero_internal_models.BackendToolCallFunctionArguments'
+        $ref: '#/definitions/BackendToolCallFunctionArguments'
       index:
         type: integer
       name:
         type: string
+    type: object
+  BackendToolCallFunctionArguments:
+    additionalProperties: {}
     type: object
   BackendVersionResponse:
     properties:
@@ -599,6 +602,185 @@ definitions:
       type:
         type: string
     type: object
+  ResponsesCreateRequest:
+    properties:
+      conversation: {}
+      include:
+        items:
+          type: string
+        type: array
+      input: {}
+      instructions:
+        type: string
+      max_output_tokens:
+        type: integer
+      model:
+        type: string
+      previous_response_id:
+        type: string
+      reasoning:
+        $ref: '#/definitions/ResponsesReasoningSpec'
+      stream:
+        type: boolean
+      temperature:
+        type: number
+      text:
+        $ref: '#/definitions/ResponsesTextConfig'
+      tools:
+        items:
+          $ref: '#/definitions/ResponsesTool'
+        type: array
+      top_p:
+        type: number
+      truncation:
+        type: string
+    type: object
+  ResponsesError:
+    properties:
+      code:
+        type: string
+      message:
+        type: string
+    type: object
+  ResponsesIncompleteDetails:
+    properties:
+      reason:
+        type: string
+    type: object
+  ResponsesInputUsageDetails:
+    properties:
+      cached_tokens:
+        type: integer
+    type: object
+  ResponsesOutputContent:
+    properties:
+      annotations:
+        items: {}
+        type: array
+      logprobs:
+        items: {}
+        type: array
+      text:
+        type: string
+      type:
+        type: string
+    type: object
+  ResponsesOutputItem:
+    properties:
+      arguments:
+        type: string
+      call_id:
+        type: string
+      content:
+        items:
+          $ref: '#/definitions/ResponsesOutputContent'
+        type: array
+      encrypted_content:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      role:
+        type: string
+      status:
+        type: string
+      summary:
+        items:
+          $ref: '#/definitions/ResponsesReasoningSummary'
+        type: array
+      type:
+        type: string
+    type: object
+  ResponsesOutputUsageDetails:
+    properties:
+      reasoning_tokens:
+        type: integer
+    type: object
+  ResponsesReasoningSpec:
+    properties:
+      effort:
+        type: string
+      summary:
+        type: string
+    type: object
+  ResponsesReasoningSummary:
+    properties:
+      text:
+        type: string
+      type:
+        type: string
+    type: object
+  ResponsesResponse:
+    properties:
+      completed_at:
+        type: integer
+      created_at:
+        type: integer
+      error:
+        $ref: '#/definitions/ResponsesError'
+      id:
+        type: string
+      incomplete_details:
+        $ref: '#/definitions/ResponsesIncompleteDetails'
+      instructions: {}
+      model:
+        type: string
+      object:
+        type: string
+      output:
+        items:
+          $ref: '#/definitions/ResponsesOutputItem'
+        type: array
+      previous_response_id:
+        type: string
+      status:
+        type: string
+      usage:
+        $ref: '#/definitions/ResponsesUsage'
+    type: object
+  ResponsesTextConfig:
+    properties:
+      format:
+        $ref: '#/definitions/ResponsesTextFormat'
+    type: object
+  ResponsesTextFormat:
+    properties:
+      name:
+        type: string
+      schema: {}
+      strict:
+        type: boolean
+      type:
+        type: string
+    type: object
+  ResponsesTool:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+      parameters:
+        additionalProperties: {}
+        type: object
+      strict:
+        type: boolean
+      type:
+        type: string
+    type: object
+  ResponsesUsage:
+    properties:
+      input_tokens:
+        type: integer
+      input_tokens_details:
+        $ref: '#/definitions/ResponsesInputUsageDetails'
+      output_tokens:
+        type: integer
+      output_tokens_details:
+        $ref: '#/definitions/ResponsesOutputUsageDetails'
+      total_tokens:
+        type: integer
+    type: object
   ToolCall:
     properties:
       function:
@@ -651,9 +833,6 @@ definitions:
         type: string
       updated_at:
         type: string
-    type: object
-  github_com_rhajizada_llamero_internal_models.BackendToolCallFunctionArguments:
-    additionalProperties: {}
     type: object
 info:
   contact: {}
@@ -1104,7 +1283,7 @@ paths:
       - BearerAuth: []
       summary: Proxy chat completions
       tags:
-      - LLM
+      - OpenAI
   /api/completions:
     post:
       consumes:
@@ -1151,7 +1330,7 @@ paths:
       - BearerAuth: []
       summary: Proxy legacy completions
       tags:
-      - LLM
+      - OpenAI
   /api/embeddings:
     post:
       consumes:
@@ -1198,7 +1377,7 @@ paths:
       - BearerAuth: []
       summary: Proxy embeddings
       tags:
-      - LLM
+      - OpenAI
   /api/models:
     get:
       produces:
@@ -1218,7 +1397,7 @@ paths:
       - BearerAuth: []
       summary: List available models
       tags:
-      - Models
+      - OpenAI
   /api/models/{modelID}:
     get:
       parameters:
@@ -1250,7 +1429,7 @@ paths:
       - BearerAuth: []
       summary: Get metadata for a single model
       tags:
-      - Models
+      - OpenAI
   /api/profile:
     get:
       produces:
@@ -1363,9 +1542,7 @@ paths:
         "204":
           description: No Content
           schema:
-            additionalProperties:
-              type: string
-            type: object
+            type: string
         "400":
           description: Bad Request
           schema:
@@ -1438,6 +1615,53 @@ paths:
       summary: Get personal access token metadata
       tags:
       - Profile
+  /api/responses:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Responses payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/ResponsesCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ResponsesResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "413":
+          description: Request Entity Too Large
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Bad Gateway
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: Service Unavailable
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a model response
+      tags:
+      - OpenAI
 securityDefinitions:
   BearerAuth:
     in: header

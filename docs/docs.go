@@ -17,11 +17,6 @@ const docTemplate = `{
     "paths": {
         "/api/backends": {
             "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
                 "produces": [
                     "application/json"
                 ],
@@ -48,16 +43,16 @@ const docTemplate = `{
                             }
                         }
                     }
-                }
-            }
-        },
-        "/api/backends/{backendID}/copy": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/backends/{backendID}/copy": {
+            "post": {
                 "consumes": [
                     "application/json"
                 ],
@@ -120,16 +115,16 @@ const docTemplate = `{
                             }
                         }
                     }
-                }
-            }
-        },
-        "/api/backends/{backendID}/create": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/backends/{backendID}/create": {
+            "post": {
                 "consumes": [
                     "application/json"
                 ],
@@ -192,16 +187,16 @@ const docTemplate = `{
                             }
                         }
                     }
-                }
-            }
-        },
-        "/api/backends/{backendID}/delete": {
-            "delete": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/backends/{backendID}/delete": {
+            "delete": {
                 "consumes": [
                     "application/json"
                 ],
@@ -264,16 +259,16 @@ const docTemplate = `{
                             }
                         }
                     }
-                }
-            }
-        },
-        "/api/backends/{backendID}/ps": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/backends/{backendID}/ps": {
+            "get": {
                 "description": "Forwards the request to the backend's /api/ps endpoint.",
                 "produces": [
                     "application/json"
@@ -319,16 +314,16 @@ const docTemplate = `{
                             }
                         }
                     }
-                }
-            }
-        },
-        "/api/backends/{backendID}/pull": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/backends/{backendID}/pull": {
+            "post": {
                 "consumes": [
                     "application/json"
                 ],
@@ -391,16 +386,16 @@ const docTemplate = `{
                             }
                         }
                     }
-                }
-            }
-        },
-        "/api/backends/{backendID}/push": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/backends/{backendID}/push": {
+            "post": {
                 "consumes": [
                     "application/json"
                 ],
@@ -463,16 +458,16 @@ const docTemplate = `{
                             }
                         }
                     }
-                }
-            }
-        },
-        "/api/backends/{backendID}/show": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/backends/{backendID}/show": {
+            "post": {
                 "consumes": [
                     "application/json"
                 ],
@@ -535,16 +530,16 @@ const docTemplate = `{
                             }
                         }
                     }
-                }
-            }
-        },
-        "/api/backends/{backendID}/tags": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/backends/{backendID}/tags": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -586,16 +581,16 @@ const docTemplate = `{
                             }
                         }
                     }
-                }
-            }
-        },
-        "/api/backends/{backendID}/version": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/backends/{backendID}/version": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -637,16 +632,16 @@ const docTemplate = `{
                             }
                         }
                     }
-                }
-            }
-        },
-        "/api/chat/completions": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/chat/completions": {
+            "post": {
                 "consumes": [
                     "application/json"
                 ],
@@ -654,7 +649,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "LLM"
+                    "OpenAI"
                 ],
                 "summary": "Proxy chat completions",
                 "parameters": [
@@ -711,16 +706,16 @@ const docTemplate = `{
                             }
                         }
                     }
-                }
-            }
-        },
-        "/api/completions": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/completions": {
+            "post": {
                 "consumes": [
                     "application/json"
                 ],
@@ -728,7 +723,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "LLM"
+                    "OpenAI"
                 ],
                 "summary": "Proxy legacy completions",
                 "parameters": [
@@ -785,16 +780,16 @@ const docTemplate = `{
                             }
                         }
                     }
-                }
-            }
-        },
-        "/api/embeddings": {
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/embeddings": {
+            "post": {
                 "consumes": [
                     "application/json"
                 ],
@@ -802,7 +797,7 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "LLM"
+                    "OpenAI"
                 ],
                 "summary": "Proxy embeddings",
                 "parameters": [
@@ -859,21 +854,21 @@ const docTemplate = `{
                             }
                         }
                     }
-                }
-            }
-        },
-        "/api/models": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/models": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Models"
+                    "OpenAI"
                 ],
                 "summary": "List available models",
                 "responses": {
@@ -892,21 +887,21 @@ const docTemplate = `{
                             }
                         }
                     }
-                }
-            }
-        },
-        "/api/models/{modelID}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/models/{modelID}": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Models"
+                    "OpenAI"
                 ],
                 "summary": "Get metadata for a single model",
                 "parameters": [
@@ -943,16 +938,16 @@ const docTemplate = `{
                             }
                         }
                     }
-                }
-            }
-        },
-        "/api/profile": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/profile": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -985,16 +980,16 @@ const docTemplate = `{
                             }
                         }
                     }
-                }
-            }
-        },
-        "/api/profile/tokens": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/profile/tokens": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -1030,14 +1025,14 @@ const docTemplate = `{
                             }
                         }
                     }
-                }
-            },
-            "post": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
-                ],
+                ]
+            },
+            "post": {
                 "consumes": [
                     "application/json"
                 ],
@@ -1102,16 +1097,16 @@ const docTemplate = `{
                             }
                         }
                     }
-                }
-            }
-        },
-        "/api/profile/tokens/{tokenID}": {
-            "get": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
-                ],
+                ]
+            }
+        },
+        "/api/profile/tokens/{tokenID}": {
+            "get": {
                 "produces": [
                     "application/json"
                 ],
@@ -1171,14 +1166,14 @@ const docTemplate = `{
                             }
                         }
                     }
-                }
-            },
-            "delete": {
+                },
                 "security": [
                     {
                         "BearerAuth": []
                     }
-                ],
+                ]
+            },
+            "delete": {
                 "tags": [
                     "Profile"
                 ],
@@ -1196,10 +1191,7 @@ const docTemplate = `{
                     "204": {
                         "description": "No Content",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "type": "string"
                         }
                     },
                     "400": {
@@ -1238,7 +1230,86 @@ const docTemplate = `{
                             }
                         }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/responses": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "OpenAI"
+                ],
+                "summary": "Create a model response",
+                "parameters": [
+                    {
+                        "description": "Responses payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ResponsesCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ResponsesResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "413": {
+                        "description": "Request Entity Too Large",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ]
             }
         }
     },
@@ -1531,7 +1602,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "arguments": {
-                    "$ref": "#/definitions/github_com_rhajizada_llamero_internal_models.BackendToolCallFunctionArguments"
+                    "$ref": "#/definitions/BackendToolCallFunctionArguments"
                 },
                 "index": {
                     "type": "integer"
@@ -1540,6 +1611,10 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
+        },
+        "BackendToolCallFunctionArguments": {
+            "type": "object",
+            "additionalProperties": {}
         },
         "BackendVersionResponse": {
             "type": "object",
@@ -2157,6 +2232,278 @@ const docTemplate = `{
                 }
             }
         },
+        "ResponsesCreateRequest": {
+            "type": "object",
+            "properties": {
+                "conversation": {},
+                "include": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "input": {},
+                "instructions": {
+                    "type": "string"
+                },
+                "max_output_tokens": {
+                    "type": "integer"
+                },
+                "model": {
+                    "type": "string"
+                },
+                "previous_response_id": {
+                    "type": "string"
+                },
+                "reasoning": {
+                    "$ref": "#/definitions/ResponsesReasoningSpec"
+                },
+                "stream": {
+                    "type": "boolean"
+                },
+                "temperature": {
+                    "type": "number"
+                },
+                "text": {
+                    "$ref": "#/definitions/ResponsesTextConfig"
+                },
+                "tools": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ResponsesTool"
+                    }
+                },
+                "top_p": {
+                    "type": "number"
+                },
+                "truncation": {
+                    "type": "string"
+                }
+            }
+        },
+        "ResponsesError": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "ResponsesIncompleteDetails": {
+            "type": "object",
+            "properties": {
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
+        "ResponsesInputUsageDetails": {
+            "type": "object",
+            "properties": {
+                "cached_tokens": {
+                    "type": "integer"
+                }
+            }
+        },
+        "ResponsesOutputContent": {
+            "type": "object",
+            "properties": {
+                "annotations": {
+                    "type": "array",
+                    "items": {}
+                },
+                "logprobs": {
+                    "type": "array",
+                    "items": {}
+                },
+                "text": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "ResponsesOutputItem": {
+            "type": "object",
+            "properties": {
+                "arguments": {
+                    "type": "string"
+                },
+                "call_id": {
+                    "type": "string"
+                },
+                "content": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ResponsesOutputContent"
+                    }
+                },
+                "encrypted_content": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "summary": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ResponsesReasoningSummary"
+                    }
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "ResponsesOutputUsageDetails": {
+            "type": "object",
+            "properties": {
+                "reasoning_tokens": {
+                    "type": "integer"
+                }
+            }
+        },
+        "ResponsesReasoningSpec": {
+            "type": "object",
+            "properties": {
+                "effort": {
+                    "type": "string"
+                },
+                "summary": {
+                    "type": "string"
+                }
+            }
+        },
+        "ResponsesReasoningSummary": {
+            "type": "object",
+            "properties": {
+                "text": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "ResponsesResponse": {
+            "type": "object",
+            "properties": {
+                "completed_at": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "integer"
+                },
+                "error": {
+                    "$ref": "#/definitions/ResponsesError"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "incomplete_details": {
+                    "$ref": "#/definitions/ResponsesIncompleteDetails"
+                },
+                "instructions": {},
+                "model": {
+                    "type": "string"
+                },
+                "object": {
+                    "type": "string"
+                },
+                "output": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ResponsesOutputItem"
+                    }
+                },
+                "previous_response_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "usage": {
+                    "$ref": "#/definitions/ResponsesUsage"
+                }
+            }
+        },
+        "ResponsesTextConfig": {
+            "type": "object",
+            "properties": {
+                "format": {
+                    "$ref": "#/definitions/ResponsesTextFormat"
+                }
+            }
+        },
+        "ResponsesTextFormat": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "schema": {},
+                "strict": {
+                    "type": "boolean"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "ResponsesTool": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "parameters": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "strict": {
+                    "type": "boolean"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "ResponsesUsage": {
+            "type": "object",
+            "properties": {
+                "input_tokens": {
+                    "type": "integer"
+                },
+                "input_tokens_details": {
+                    "$ref": "#/definitions/ResponsesInputUsageDetails"
+                },
+                "output_tokens": {
+                    "type": "integer"
+                },
+                "output_tokens_details": {
+                    "$ref": "#/definitions/ResponsesOutputUsageDetails"
+                },
+                "total_tokens": {
+                    "type": "integer"
+                }
+            }
+        },
         "ToolCall": {
             "type": "object",
             "properties": {
@@ -2237,10 +2584,6 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
-        },
-        "github_com_rhajizada_llamero_internal_models.BackendToolCallFunctionArguments": {
-            "type": "object",
-            "additionalProperties": {}
         }
     },
     "securityDefinitions": {

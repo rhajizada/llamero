@@ -6,7 +6,6 @@ tool (
 	github.com/pressly/goose/v3/cmd/goose
 	github.com/sqlc-dev/sqlc/cmd/sqlc
 	github.com/swaggo/swag/cmd/swag
-	mvdan.cc/gofumpt
 )
 
 require (

@@ -16,7 +16,7 @@ var (
 
 // HandleListModels godoc
 // @Summary List available models
-// @Tags Models
+// @Tags OpenAI
 // @Produce json
 // @Security BearerAuth
 // @Success 200 {object} models.ModelList
@@ -38,7 +38,7 @@ func (h *Handler) HandleListModels(w http.ResponseWriter, r *http.Request) {
 
 // HandleGetModel godoc
 // @Summary Get metadata for a single model
-// @Tags Models
+// @Tags OpenAI
 // @Produce json
 // @Security BearerAuth
 // @Param modelID path string true "Model ID"

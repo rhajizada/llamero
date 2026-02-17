@@ -21,6 +21,8 @@ var (
 	_ models.CompletionResponse
 	_ models.EmbeddingsRequest
 	_ models.EmbeddingsResponse
+	_ models.ResponsesCreateRequest
+	_ models.ResponsesResponse
 )
 
 const maxProxyBodyBytes int64 = 5 << 20 // 5 MiB
@@ -42,9 +44,14 @@ type CompletionProxyRequest struct {
 	Model string `json:"model"`
 }
 
+// ResponsesProxyCreateRequest represents the subset of responses fields inspected for routing.
+type ResponsesProxyCreateRequest struct {
+	Model string `json:"model"`
+}
+
 // HandleChatCompletions godoc
 // @Summary Proxy chat completions
-// @Tags LLM
+// @Tags OpenAI
 // @Accept json
 // @Produce json
 // @Security BearerAuth
@@ -77,7 +84,7 @@ func (h *Handler) HandleChatCompletions(w http.ResponseWriter, r *http.Request) 
 
 // HandleEmbeddings godoc
 // @Summary Proxy embeddings
-// @Tags LLM
+// @Tags OpenAI
 // @Accept json
 // @Produce json
 // @Security BearerAuth
@@ -110,7 +117,7 @@ func (h *Handler) HandleEmbeddings(w http.ResponseWriter, r *http.Request) {
 
 // HandleCompletions godoc
 // @Summary Proxy legacy completions
-// @Tags LLM
+// @Tags OpenAI
 // @Accept json
 // @Produce json
 // @Security BearerAuth
@@ -141,6 +148,44 @@ func (h *Handler) HandleCompletions(w http.ResponseWriter, r *http.Request) {
 	h.forwardLLMRequest(w, r, payload.Model, body)
 }
 
+// HandleResponsesCreate godoc
+// @Summary Create a model response
+// @Tags OpenAI
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body models.ResponsesCreateRequest true "Responses payload"
+// @Success 200 {object} models.ResponsesResponse
+// @Failure 400 {object} map[string]string
+// @Failure 413 {object} map[string]string
+// @Failure 502 {object} map[string]string
+// @Failure 503 {object} map[string]string
+// @Router /api/responses [post].
+func (h *Handler) HandleResponsesCreate(w http.ResponseWriter, r *http.Request) {
+	body, err := h.readProxyPayload(r)
+	if err != nil {
+		h.writeProxyReadError(w, err)
+		return
+	}
+
+	var payload ResponsesProxyCreateRequest
+	if decodeErr := json.Unmarshal(body, &payload); decodeErr != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON payload")
+		return
+	}
+	if strings.TrimSpace(payload.Model) == "" {
+		writeError(w, http.StatusBadRequest, "model is required")
+		return
+	}
+
+	route, err := h.svc.RouteResponsesCreate(r.Context(), payload.Model)
+	if err != nil {
+		h.handleRoutingError(w, err)
+		return
+	}
+	h.forwardLLMRequestToRoute(w, r, route, body)
+}
+
 func (h *Handler) readProxyPayload(r *http.Request) ([]byte, error) {
 	defer r.Body.Close()
 	limited := io.LimitReader(r.Body, maxProxyBodyBytes+1)
@@ -169,7 +214,15 @@ func (h *Handler) forwardLLMRequest(w http.ResponseWriter, r *http.Request, mode
 		h.handleRoutingError(w, err)
 		return
 	}
+	h.forwardLLMRequestToRoute(w, r, route, body)
+}
 
+func (h *Handler) forwardLLMRequestToRoute(
+	w http.ResponseWriter,
+	r *http.Request,
+	route service.BackendRoute,
+	body []byte,
+) {
 	ctx := requestctx.WithBackendID(r.Context(), route.ID)
 	req := r.WithContext(ctx)
 
