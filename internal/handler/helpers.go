@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
-	"time"
 )
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
@@ -97,6 +97,46 @@ func nullableString(value string) *string {
 	return &value
 }
 
-func timePtr(t time.Time) *time.Time {
-	return &t
+func buildBackendURL(baseAddress, backendPath, rawQuery string) (string, error) {
+	parsed, err := url.Parse(strings.TrimSpace(baseAddress))
+	if err != nil {
+		return "", fmt.Errorf("parse backend address: %w", err)
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return "", fmt.Errorf("backend address must use http or https: %q", baseAddress)
+	}
+	if parsed.Host == "" {
+		return "", fmt.Errorf("backend address missing host: %q", baseAddress)
+	}
+	if parsed.User != nil {
+		return "", fmt.Errorf("backend address must not include credentials: %q", baseAddress)
+	}
+	if parsed.Opaque != "" {
+		return "", fmt.Errorf("backend address must be hierarchical: %q", baseAddress)
+	}
+	if parsed.Fragment != "" {
+		return "", fmt.Errorf("backend address must not include fragment: %q", baseAddress)
+	}
+
+	target := *parsed
+	target.RawQuery = ""
+	target.Fragment = ""
+
+	backendPath = strings.TrimSpace(backendPath)
+	if backendPath != "" {
+		if !strings.HasPrefix(backendPath, "/") {
+			backendPath = "/" + backendPath
+		}
+		basePath := strings.TrimRight(target.Path, "/")
+		if basePath == "" {
+			target.Path = backendPath
+		} else {
+			target.Path = basePath + backendPath
+		}
+	}
+	if rawQuery != "" {
+		target.RawQuery = rawQuery
+	}
+
+	return target.String(), nil
 }

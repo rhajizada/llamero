@@ -304,16 +304,12 @@ func (h *Handler) proxyBackendWithBody(
 	method, path string,
 	body []byte,
 ) (*http.Response, error) {
-	target := strings.TrimRight(route.Address, "/")
-	if !strings.HasPrefix(path, "/") {
-		target += "/" + path
-	} else {
-		target += path
-	}
-	if raw := r.URL.RawQuery; raw != "" {
-		target += "?" + raw
+	target, err := buildBackendURL(route.Address, path, r.URL.RawQuery)
+	if err != nil {
+		return nil, err
 	}
 
+	//nolint:gosec // buildBackendURL validates the backend target before constructing the request.
 	req, err := http.NewRequestWithContext(r.Context(), method, target, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
@@ -321,6 +317,7 @@ func (h *Handler) proxyBackendWithBody(
 	copyHeaders(req.Header, r.Header)
 	stripProxyHeaders(req.Header)
 	applyForwardHeaders(req, r)
+	//nolint:gosec // request target was validated by buildBackendURL.
 	return h.client.Do(req)
 }
 

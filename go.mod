@@ -1,6 +1,6 @@
 module github.com/rhajizada/llamero
 
-go 1.25
+go 1.26
 
 tool (
 	github.com/pressly/goose/v3/cmd/goose
@@ -59,7 +59,6 @@ require (
 	github.com/golang-sql/civil v0.0.0-20220223132316-b832511892a9 // indirect
 	github.com/golang-sql/sqlexp v0.1.0 // indirect
 	github.com/google/cel-go v0.26.1 // indirect
-	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
@@ -131,6 +130,5 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 	modernc.org/sqlite v1.38.2 // indirect
-	mvdan.cc/gofumpt v0.9.2 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )

@@ -21,6 +21,8 @@ import (
 
 var _ models.User
 
+const maxOAuthCallbackFormBytes int64 = 64 << 10
+
 // Health reports a basic status.
 func (h *Handler) Health(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
@@ -42,13 +44,22 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 // Callback exchanges the authorization code, fetches user info, and issues a JWT.
 func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	if errStr := r.FormValue("error"); errStr != "" {
+	if err := parseOAuthCallbackForm(w, r); err != nil {
+		if errors.As(err, new(*http.MaxBytesError)) {
+			writeError(w, http.StatusRequestEntityTooLarge, "request body too large")
+		} else {
+			writeError(w, http.StatusBadRequest, "invalid form payload")
+		}
+		return
+	}
+
+	if errStr := r.Form.Get("error"); errStr != "" {
 		writeError(w, http.StatusBadRequest, errStr)
 		return
 	}
 
-	code := r.FormValue("code")
-	state := r.FormValue("state")
+	code := r.Form.Get("code")
+	state := r.Form.Get("state")
 	if code == "" {
 		writeError(w, http.StatusBadRequest, "missing authorization code")
 		return
@@ -90,7 +101,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		Role:        role,
 		Scopes:      scopes,
 		Groups:      user.Groups,
-		LastLoginAt: timePtr(time.Now()),
+		LastLoginAt: new(time.Now()),
 	})
 	if err != nil {
 		h.logger.ErrorContext(ctx, "upsert user", "err", err)
@@ -112,6 +123,11 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 
 	redirectTarget := h.loginRedirectURL(token)
 	http.Redirect(w, r, redirectTarget, http.StatusFound)
+}
+
+func parseOAuthCallbackForm(w http.ResponseWriter, r *http.Request) error {
+	r.Body = http.MaxBytesReader(w, r.Body, maxOAuthCallbackFormBytes)
+	return r.ParseForm()
 }
 
 func (h *Handler) loginRedirectURL(token string) string {
