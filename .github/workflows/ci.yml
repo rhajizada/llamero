@@ -4,11 +4,41 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "v*.*.*"
   pull_request:
     branches:
       - "*"
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
+  env:
+    name: Set versions
+    runs-on: ubuntu-latest
+    outputs:
+      build_version: ${{ steps.env.outputs.build_version }}
+      image_version: ${{ steps.env.outputs.image_version }}
+      release: ${{ steps.env.outputs.release }}
+    steps:
+      - name: Determine versions
+        id: env
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            image_version="${{ github.ref_name }}"
+            build_version="${image_version#v}"
+            release=true
+          else
+            image_version="${GITHUB_SHA::7}"
+            build_version="${GITHUB_SHA::7}"
+            release=false
+          fi
+          echo "build_version=$build_version" >> "$GITHUB_OUTPUT"
+          echo "image_version=$image_version" >> "$GITHUB_OUTPUT"
+          echo "release=$release" >> "$GITHUB_OUTPUT"
+
   golangci-lint:
     name: golangci-lint
     runs-on: ubuntu-latest
@@ -26,6 +56,13 @@ jobs:
         uses: golangci/golangci-lint-action@v8
         with:
           args: --timeout 5m
+
+      - name: Check code formatting
+        run: golangci-lint fmt --diff
+
+      - name: Static analysis
+        run: go vet ./...
+
   eslint:
     name: eslint
     runs-on: ubuntu-latest
@@ -43,3 +80,68 @@ jobs:
         shell: bash
         run: bun run lint
         working-directory: ui
+
+  build-images:
+    needs:
+      - env
+      - golangci-lint
+      - eslint
+    name: Build ${{ matrix.app }} image
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - app: server
+            file: ./docker/server/Dockerfile
+            build_args: VERSION=${{ needs.env.outputs.build_version }}
+          - app: worker
+            file: ./docker/worker/Dockerfile
+            build_args: VERSION=${{ needs.env.outputs.build_version }}
+          - app: scheduler
+            file: ./docker/scheduler/Dockerfile
+            build_args: VERSION=${{ needs.env.outputs.build_version }}
+          - app: ui
+            file: ./docker/ui/Dockerfile
+            build_args: NEXT_TELEMETRY_DISABLED=1
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Docker metadata (${{ matrix.app }})
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository }}/${{ matrix.app }}
+          tags: |
+            type=raw,value=${{ needs.env.outputs.image_version }}
+            type=raw,value=latest,enable=${{ needs.env.outputs.release == 'true' }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ needs.env.outputs.image_version }}
+
+      - name: Login to GHCR
+        if: ${{ github.event_name == 'push' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          push: ${{ github.event_name == 'push' }}
+          context: .
+          file: ${{ matrix.file }}
+          build-args: ${{ matrix.build_args || '' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

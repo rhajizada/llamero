@@ -16,6 +16,11 @@ tasks:
     cmds:
       - golangci-lint run ./...
 
+  vet:
+    desc: Vet go files
+    cmds:
+      - go vet ./...
+
   sqlc:
     desc: Generate repository code via sqlc
     cmds:
