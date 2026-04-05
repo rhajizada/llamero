@@ -1,0 +1,71 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      go-dev:
+        patterns:
+          - "github.com/pressly/goose*"
+          - "github.com/sqlc-dev/*"
+          - "github.com/swaggo/*"
+          - "mvdan.cc/gofumpt"
+      go-runtime:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "github.com/pressly/goose*"
+          - "github.com/sqlc-dev/*"
+          - "github.com/swaggo/*"
+          - "mvdan.cc/gofumpt"
+
+  - package-ecosystem: "npm"
+    directory: "/ui"
+    schedule:
+      interval: "weekly"
+    versioning-strategy: increase
+    groups:
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+      next:
+        patterns:
+          - "next"
+          - "next-*"
+      radix:
+        patterns:
+          - "@radix-ui/*"
+      styling:
+        patterns:
+          - "tailwind*"
+          - "@tailwindcss/*"
+          - "postcss"
+          - "tw-*"
+          - "class-variance-authority"
+          - "clsx"
+          - "tailwind-merge"
+      typing:
+        patterns:
+          - "typescript"
+          - "@types/*"
+      linting:
+        patterns:
+          - "eslint*"
+      ui-extras:
+        patterns:
+          - "lucide-react"
+          - "react-day-picker"
+          - "date-fns"
+          - "next-themes"
+          - "sonner"
