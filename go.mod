@@ -11,14 +11,14 @@ tool (
 
 require (
 	github.com/alicebob/miniredis/v2 v2.37.0
-	github.com/caarlos0/env/v11 v11.3.1
-	github.com/golang-jwt/jwt/v5 v5.3.0
+	github.com/caarlos0/env/v11 v11.4.0
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
-	github.com/hibiken/asynq v0.25.1
-	github.com/jackc/pgx/v5 v5.8.0
-	github.com/ollama/ollama v0.14.3
+	github.com/hibiken/asynq v0.26.0
+	github.com/jackc/pgx/v5 v5.9.1
+	github.com/ollama/ollama v0.20.2
 	github.com/pressly/goose/v3 v3.27.0
-	github.com/redis/go-redis/v9 v9.17.2
+	github.com/redis/go-redis/v9 v9.18.0
 	github.com/swaggo/http-swagger v1.3.4
 	github.com/swaggo/swag v1.16.6
 	gopkg.in/yaml.v3 v3.0.1
