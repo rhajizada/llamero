@@ -1,5 +1,10 @@
 # 🦙 Llamero
 
+![Go](https://img.shields.io/badge/Go-1.26-blue.svg)
+![License](https://img.shields.io/badge/License-MIT-green.svg)
+[![CI](https://github.com/rhajizada/llamero/actions/workflows/ci.yml/badge.svg)](https://github.com/rhajizada/llamero/actions/workflows/ci.yml)
+![coverage](https://signum.rhajizada.dev/api/badges/74cf1fad-1e6d-4280-9e0d-406b08846f4b)
+
 Llamero is a **secure load balancer and control plane** for Ollama clusters.
 
 **Stack**: Go services (server, worker, scheduler), Next.js UI, Postgres, Redis, Ollama, Nginx.
@@ -25,7 +30,7 @@ openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096 -out secrets/jwt_pr
 openssl rsa -in secrets/jwt_private.pem -pubout -out secrets/jwt_public.pem
 ```
 
-2. 📝 Create `.env` with service settings
+1. 📝 Create `.env` with service settings
 
 ```bash
 # Server (HTTP + OAuth/JWT)
@@ -73,7 +78,7 @@ LLAMERO_BACKENDS_FILE=config/backends.yaml
 
 Worker and scheduler ignore the OAuth/JWT values above—they only need the Postgres/Redis/job settings. Defaults in `docker-compose.yml` wire up Postgres, Redis, Ollama, Nginx. Adjust `config/backends.yaml` (LLM endpoints) and `config/roles.yaml` (scope sets) if needed.
 
-3. 🚀 Launch the stack
+1. 🚀 Launch the stack
 
 ```bash
 docker compose up --build
