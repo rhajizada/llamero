@@ -14,7 +14,7 @@ env:
 
 jobs:
   test:
-    name: test
+    name: Lint and Test Go
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,7 +41,7 @@ jobs:
         run: go tool gotestsum --junitfile results/unit-tests.xml
 
   eslint:
-    name: eslint
+    name: Lint UI
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

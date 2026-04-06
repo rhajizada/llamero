@@ -40,7 +40,7 @@ jobs:
           echo "release=$release" >> "$GITHUB_OUTPUT"
 
   test:
-    name: test
+    name: Lint and Test Go
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -135,8 +135,9 @@ jobs:
             echo "Badge update failed (${http_code}): ${http_body}" >&2
             exit 1
           fi
+
   eslint:
-    name: eslint
+    name: Lint UI
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
