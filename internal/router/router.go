@@ -15,6 +15,10 @@ type Router struct {
 	mux *http.ServeMux
 }
 
+func NewMux() *Router {
+	return &Router{mux: http.NewServeMux()}
+}
+
 // New builds the HTTP routing table.
 func New(h *handler.Handler, authz *middleware.Authz) *Router {
 	if authz == nil {

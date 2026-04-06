@@ -8,17 +8,20 @@ import (
 	"strings"
 
 	"github.com/hibiken/asynq"
-
-	"github.com/rhajizada/llamero/internal/service"
 )
 
 // Handler defines task handlers for Asynq.
 type Handler struct {
-	svc *service.Service
+	svc SyncService
+}
+
+type SyncService interface {
+	SyncBackends(ctx context.Context) error
+	SyncBackendByID(ctx context.Context, backendID string) error
 }
 
 // NewHandler creates a handler instance.
-func NewHandler(svc *service.Service) *Handler {
+func NewHandler(svc SyncService) *Handler {
 	return &Handler{svc: svc}
 }
 

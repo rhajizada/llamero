@@ -77,6 +77,20 @@ func New(
 	}, nil
 }
 
+func NewTestServer(cfg *config.ServerConfig, router http.Handler, logger *slog.Logger) *Server {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	if router == nil {
+		router = http.NewServeMux()
+	}
+	return &Server{
+		cfg:    cfg,
+		router: router,
+		logger: logger,
+	}
+}
+
 // Run starts the HTTP listener until the context is cancelled.
 func (s *Server) Run(ctx context.Context) error {
 	srv := &http.Server{

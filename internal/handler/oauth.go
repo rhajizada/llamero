@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -15,13 +13,18 @@ import (
 
 	"github.com/rhajizada/llamero/internal/middleware"
 	"github.com/rhajizada/llamero/internal/models"
+	oauthclient "github.com/rhajizada/llamero/internal/oauth"
 	"github.com/rhajizada/llamero/internal/repository"
-	"github.com/rhajizada/llamero/internal/service"
+	"github.com/rhajizada/llamero/internal/xslices"
 )
 
 var _ models.User
 
 const maxOAuthCallbackFormBytes int64 = 64 << 10
+
+func ParseOAuthCallbackForm(w http.ResponseWriter, r *http.Request) error {
+	return parseOAuthCallbackForm(w, r)
+}
 
 // Health reports a basic status.
 func (h *Handler) Health(w http.ResponseWriter, _ *http.Request) {
@@ -32,7 +35,7 @@ func (h *Handler) Health(w http.ResponseWriter, _ *http.Request) {
 // Login kicks off the OAuth authorization code flow.
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	state := h.state.Issue()
-	authURL, err := h.buildAuthorizeURL(state)
+	authURL, err := h.oauth.BuildAuthorizeURL(state)
 	if err != nil {
 		h.logger.ErrorContext(r.Context(), "build auth url", "err", err)
 		writeError(w, http.StatusInternalServerError, "configuration error")
@@ -69,7 +72,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokenResp, err := h.exchangeCode(ctx, code)
+	tokenResp, err := h.oauth.ExchangeCode(ctx, code)
 	if err != nil {
 		h.logger.ErrorContext(ctx, "exchange code", "err", err)
 		writeError(w, http.StatusBadGateway, "token exchange failed")
@@ -80,7 +83,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.fetchUserInfo(ctx, tokenResp.AccessToken)
+	user, err := h.oauth.FetchUserInfo(ctx, tokenResp.AccessToken)
 	if err != nil {
 		h.logger.ErrorContext(ctx, "fetch user info", "err", err)
 		writeError(w, http.StatusBadGateway, "user info request failed")
@@ -105,12 +108,7 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		h.logger.ErrorContext(ctx, "upsert user", "err", err)
-		var appErr *service.Error
-		if errors.As(err, &appErr) {
-			writeError(w, appErr.Code, appErr.Message)
-		} else {
-			writeError(w, http.StatusInternalServerError, "failed to persist user")
-		}
+		writeServiceError(w, err, http.StatusInternalServerError, "failed to persist user")
 		return
 	}
 
@@ -128,120 +126,6 @@ func (h *Handler) Callback(w http.ResponseWriter, r *http.Request) {
 func parseOAuthCallbackForm(w http.ResponseWriter, r *http.Request) error {
 	r.Body = http.MaxBytesReader(w, r.Body, maxOAuthCallbackFormBytes)
 	return r.ParseForm()
-}
-
-func (h *Handler) loginRedirectURL(token string) string {
-	base := strings.TrimRight(h.cfg.ExternalURL, "/")
-	if base == "" {
-		base = "/"
-	}
-
-	params := url.Values{}
-	params.Set("token", token)
-	params.Set("expires_in", strconv.Itoa(int(h.cfg.JWT.TTL.Seconds())))
-
-	return fmt.Sprintf("%s/login#%s", base, params.Encode())
-}
-
-func (h *Handler) buildAuthorizeURL(state string) (string, error) {
-	u, err := url.Parse(h.cfg.OAuth.AuthorizeURL)
-	if err != nil {
-		return "", err
-	}
-
-	q := u.Query()
-	q.Set("response_type", "code")
-	q.Set("client_id", h.cfg.OAuth.ClientID)
-	q.Set("redirect_uri", h.cfg.OAuth.RedirectURL)
-	q.Set("scope", strings.Join(h.cfg.OAuth.Scopes, " "))
-	q.Set("state", state)
-	if aud := strings.TrimSpace(h.cfg.JWT.Audience); aud != "" {
-		q.Set("audience", aud)
-	}
-	u.RawQuery = q.Encode()
-	return u.String(), nil
-}
-
-func (h *Handler) exchangeCode(ctx context.Context, code string) (*tokenResponse, error) {
-	form := url.Values{}
-	form.Set("grant_type", "authorization_code")
-	form.Set("code", code)
-	form.Set("redirect_uri", h.cfg.OAuth.RedirectURL)
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, h.cfg.OAuth.TokenURL, strings.NewReader(form.Encode()))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.SetBasicAuth(h.cfg.OAuth.ClientID, h.cfg.OAuth.ClientSecret)
-
-	resp, err := h.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= http.StatusBadRequest {
-		return nil, fmt.Errorf("token endpoint returned %s", resp.Status)
-	}
-
-	var tr tokenResponse
-	if decodeErr := json.NewDecoder(resp.Body).Decode(&tr); decodeErr != nil {
-		return nil, decodeErr
-	}
-	return &tr, nil
-}
-
-func (h *Handler) fetchUserInfo(ctx context.Context, accessToken string) (*userInfo, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, h.cfg.OAuth.UserInfoURL, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-
-	resp, err := h.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= http.StatusBadRequest {
-		return nil, fmt.Errorf("userinfo endpoint returned %s", resp.Status)
-	}
-
-	var raw map[string]any
-	if decodeErr := json.NewDecoder(resp.Body).Decode(&raw); decodeErr != nil {
-		return nil, decodeErr
-	}
-
-	info := &userInfo{
-		Subject: firstNonEmpty(getString(raw["sub"]), getString(raw["id"]), getString(raw["user_id"])),
-		Email:   firstNonEmpty(getString(raw["email"]), getString(raw["preferred_username"])),
-		Name:    getString(raw["name"]),
-		Groups:  collectStrings(raw["groups"]),
-	}
-
-	if info.Subject == "" {
-		return nil, errors.New("userinfo payload missing subject")
-	}
-	if info.Email == "" {
-		info.Email = info.Subject
-	}
-
-	return info, nil
-}
-
-func (h *Handler) determineRole(info *userInfo) (string, []string, error) {
-	groups := dedupeStrings(info.Groups)
-	if len(groups) == 0 {
-		return "", nil, fmt.Errorf("user %s is not in any authorized groups", info.Subject)
-	}
-
-	role, scopes, ok := h.roles.Resolve(groups)
-	if !ok || len(scopes) == 0 {
-		return "", nil, fmt.Errorf("user %s is not in any authorized groups", info.Subject)
-	}
-	return role, scopes, nil
 }
 
 // Profile godoc
@@ -268,30 +152,35 @@ func (h *Handler) Profile(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.svc.GetUser(r.Context(), userID)
 	if err != nil {
-		var appErr *service.Error
-		if errors.As(err, &appErr) {
-			writeError(w, appErr.Code, appErr.Message)
-		} else {
-			writeError(w, http.StatusInternalServerError, "failed to load profile")
-		}
+		writeServiceError(w, err, http.StatusInternalServerError, "failed to load profile")
 		return
 	}
 
 	writeJSON(w, http.StatusOK, user)
 }
 
-type tokenResponse struct {
-	AccessToken  string `json:"access_token"`
-	TokenType    string `json:"token_type"`
-	ExpiresIn    int    `json:"expires_in"`
-	RefreshToken string `json:"refresh_token"`
-	Scope        string `json:"scope"`
-	IDToken      string `json:"id_token"`
+func (h *Handler) loginRedirectURL(token string) string {
+	base := strings.TrimRight(h.cfg.ExternalURL, "/")
+	if base == "" {
+		base = "/"
+	}
+
+	params := url.Values{}
+	params.Set("token", token)
+	params.Set("expires_in", strconv.Itoa(int(h.cfg.JWT.TTL.Seconds())))
+
+	return fmt.Sprintf("%s/login#%s", base, params.Encode())
 }
 
-type userInfo struct {
-	Subject string
-	Email   string
-	Name    string
-	Groups  []string
+func (h *Handler) determineRole(info *oauthclient.UserInfo) (string, []string, error) {
+	groups := xslices.UniqueTrimmedStrings(info.Groups)
+	if len(groups) == 0 {
+		return "", nil, fmt.Errorf("user %s is not in any authorized groups", info.Subject)
+	}
+
+	role, scopes, ok := h.roles.Resolve(groups)
+	if !ok || len(scopes) == 0 {
+		return "", nil, fmt.Errorf("user %s is not in any authorized groups", info.Subject)
+	}
+	return role, scopes, nil
 }

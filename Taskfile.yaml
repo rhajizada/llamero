@@ -21,6 +21,24 @@ tasks:
     cmds:
       - go vet ./...
 
+  test:
+    desc: Run tests
+    cmds:
+      - go tool gotestsum -- ./...
+
+  coverage:
+    desc: Generate coverage report
+    cmds:
+      - |
+        bash -lc 'set -euo pipefail; \
+        mod="$(go list -m)"; \
+        packages="$(go list ./... \
+          | grep -vE "/(docs|vendor|mocks|testdata|internal/repository|internal/testutil)(/|$)" \
+          | grep -vFx "$mod" \
+          | tr "\n" " ")"; \
+        go tool gotestsum -- $packages -coverprofile=coverage.out > /dev/null; \
+        go tool cover -func=coverage.out'
+
   sqlc:
     desc: Generate repository code via sqlc
     cmds:

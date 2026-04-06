@@ -2,13 +2,14 @@ package middleware
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/rhajizada/llamero/internal/auth"
+	"github.com/rhajizada/llamero/internal/httpjson"
 	"github.com/rhajizada/llamero/internal/service"
+	"github.com/rhajizada/llamero/internal/xslices"
 )
 
 const bearerTokenParts = 2
@@ -34,7 +35,7 @@ func NewAuthz(verifier *auth.TokenVerifier, patValidator PATValidator) *Authz {
 
 // Require ensures the incoming request bears a token containing every supplied scope.
 func (a *Authz) Require(scopes ...string) func(http.Handler) http.Handler {
-	required := dedupe(scopes)
+	required := xslices.UniqueTrimmedStrings(scopes)
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			claims, ok := authenticate(w, r, a.verifier, a.patValidator)
@@ -59,9 +60,23 @@ func ClaimsFromContext(ctx context.Context) (*auth.Claims, bool) {
 	return claims, ok
 }
 
+func ContextWithClaims(ctx context.Context, claims *auth.Claims) context.Context {
+	return context.WithValue(ctx, claimsKey{}, claims)
+}
+
 type claimsKey struct{}
 
 var errPATValidationUnavailable = errors.New("pat validation unavailable")
+
+var ErrPATValidationUnavailable = errPATValidationUnavailable
+
+func ValidatePAT(ctx context.Context, claims *auth.Claims, patValidator PATValidator) error {
+	return validatePAT(ctx, claims, patValidator)
+}
+
+func BearerToken(header string) string {
+	return bearerToken(header)
+}
 
 func authenticate(
 	w http.ResponseWriter,
@@ -123,25 +138,6 @@ func bearerToken(header string) string {
 	return strings.TrimSpace(parts[1])
 }
 
-func dedupe(values []string) []string {
-	seen := make(map[string]struct{}, len(values))
-	var out []string
-	for _, value := range values {
-		value = strings.TrimSpace(value)
-		if value == "" {
-			continue
-		}
-		if _, ok := seen[value]; ok {
-			continue
-		}
-		seen[value] = struct{}{}
-		out = append(out, value)
-	}
-	return out
-}
-
 func writeJSON(w http.ResponseWriter, status int, payload any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(payload)
+	httpjson.Write(w, status, payload)
 }

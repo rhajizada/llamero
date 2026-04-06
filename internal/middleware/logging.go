@@ -67,6 +67,10 @@ func Logging(logger *slog.Logger) func(http.Handler) http.Handler {
 
 var paramPattern = regexp.MustCompile(`\{([^}/]+)\}`)
 
+func ExtractParams(pattern string, r *http.Request) map[string]string {
+	return extractParams(pattern, r)
+}
+
 func extractParams(pattern string, r *http.Request) map[string]string {
 	if pattern == "" || r == nil {
 		return nil

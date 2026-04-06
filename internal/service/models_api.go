@@ -105,4 +105,8 @@ func addModel(dest map[string]models.Model, name string, created int64, ownedBy 
 	}
 }
 
+func AddModel(dest map[string]models.Model, name string, created int64, ownedBy string) {
+	addModel(dest, name, created, ownedBy)
+}
+
 func timeNowUnix() int64 { return time.Now().Unix() }

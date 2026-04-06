@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/caarlos0/env/v11"
+	"github.com/rhajizada/llamero/internal/xslices"
 	"gopkg.in/yaml.v3"
 )
 
@@ -148,6 +149,10 @@ func LoadScheduler() (*SchedulerConfig, error) {
 	return &cfg, nil
 }
 
+func ParseRoleGroups(value string) (map[string][]string, error) {
+	return parseRoleGroups(value)
+}
+
 func parseRoleGroups(value string) (map[string][]string, error) {
 	result := make(map[string][]string)
 	if strings.TrimSpace(value) == "" {
@@ -175,7 +180,7 @@ func parseRoleGroups(value string) (map[string][]string, error) {
 		for i := range groups {
 			groups[i] = strings.TrimSpace(groups[i])
 		}
-		result[role] = dedupe(groups)
+		result[role] = xslices.UniqueTrimmedStrings(groups)
 	}
 	return result, nil
 }
@@ -190,23 +195,6 @@ func (p PostgresConfig) DSN() string {
 		Path:     p.DBName,
 		RawQuery: fmt.Sprintf("sslmode=%s", p.SSLMode),
 	}).String()
-}
-
-func dedupe(values []string) []string {
-	seen := make(map[string]struct{}, len(values))
-	var out []string
-	for _, v := range values {
-		v = strings.TrimSpace(v)
-		if v == "" {
-			continue
-		}
-		if _, ok := seen[v]; ok {
-			continue
-		}
-		seen[v] = struct{}{}
-		out = append(out, v)
-	}
-	return out
 }
 
 // LoadBackendDefinitions reads backend definitions from YAML.

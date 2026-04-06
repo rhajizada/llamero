@@ -2,7 +2,6 @@ package handler
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -10,9 +9,9 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/rhajizada/llamero/internal/auth"
-	"github.com/rhajizada/llamero/internal/middleware"
 	"github.com/rhajizada/llamero/internal/models"
 	"github.com/rhajizada/llamero/internal/service"
+	"github.com/rhajizada/llamero/internal/xslices"
 )
 
 const (
@@ -56,12 +55,7 @@ func (h *Handler) HandleListTokens(w http.ResponseWriter, r *http.Request) {
 
 	tokens, err := h.svc.ListPersonalAccessTokens(r.Context(), userID)
 	if err != nil {
-		var appErr *service.Error
-		if errors.As(err, &appErr) {
-			writeError(w, appErr.Code, appErr.Message)
-		} else {
-			writeError(w, http.StatusInternalServerError, "failed to list tokens")
-		}
+		writeServiceError(w, err, http.StatusInternalServerError, "failed to list tokens")
 		return
 	}
 
@@ -98,12 +92,7 @@ func (h *Handler) HandleGetToken(w http.ResponseWriter, r *http.Request) {
 
 	token, err := h.svc.GetPersonalAccessToken(r.Context(), userID, tokenID)
 	if err != nil {
-		var appErr *service.Error
-		if errors.As(err, &appErr) {
-			writeError(w, appErr.Code, appErr.Message)
-		} else {
-			writeError(w, http.StatusInternalServerError, "failed to load token")
-		}
+		writeServiceError(w, err, http.StatusInternalServerError, "failed to load token")
 		return
 	}
 
@@ -145,7 +134,7 @@ func (h *Handler) HandleCreateToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	scopes := dedupeStrings(req.Scopes)
+	scopes := xslices.UniqueTrimmedStrings(req.Scopes)
 	if len(scopes) == 0 {
 		writeError(w, http.StatusBadRequest, "at least one scope is required")
 		return
@@ -180,12 +169,7 @@ func (h *Handler) HandleCreateToken(w http.ResponseWriter, r *http.Request) {
 
 	tokenMeta, err := h.svc.CreatePersonalAccessToken(r.Context(), params)
 	if err != nil {
-		var appErr *service.Error
-		if errors.As(err, &appErr) {
-			writeError(w, appErr.Code, appErr.Message)
-		} else {
-			writeError(w, http.StatusInternalServerError, "failed to create token")
-		}
+		writeServiceError(w, err, http.StatusInternalServerError, "failed to create token")
 		return
 	}
 
@@ -243,47 +227,9 @@ func (h *Handler) HandleDeleteToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err = h.svc.RevokePersonalAccessToken(r.Context(), userID, tokenID); err != nil {
-		var appErr *service.Error
-		if errors.As(err, &appErr) {
-			writeError(w, appErr.Code, appErr.Message)
-		} else {
-			writeError(w, http.StatusInternalServerError, "failed to revoke token")
-		}
+		writeServiceError(w, err, http.StatusInternalServerError, "failed to revoke token")
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
-}
-
-func (h *Handler) extractUserContext(w http.ResponseWriter, r *http.Request) (*auth.Claims, uuid.UUID, bool) {
-	claims, ok := middleware.ClaimsFromContext(r.Context())
-	if !ok {
-		writeError(w, http.StatusUnauthorized, "missing authentication context")
-		return nil, uuid.Nil, false
-	}
-
-	userID, err := uuid.Parse(claims.Subject)
-	if err != nil {
-		writeError(w, http.StatusUnauthorized, "invalid user identifier")
-		return nil, uuid.Nil, false
-	}
-
-	return claims, userID, true
-}
-
-func missingScopes(requested, allowed []string) []string {
-	if len(requested) == 0 {
-		return nil
-	}
-	allowedSet := make(map[string]struct{}, len(allowed))
-	for _, scope := range allowed {
-		allowedSet[scope] = struct{}{}
-	}
-	var invalid []string
-	for _, scope := range requested {
-		if _, ok := allowedSet[scope]; !ok {
-			invalid = append(invalid, scope)
-		}
-	}
-	return invalid
 }

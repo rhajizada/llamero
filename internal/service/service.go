@@ -15,16 +15,39 @@ import (
 
 // Service contains the business logic that interacts with persistence.
 type Service struct {
-	repo  *repository.Queries
-	store *redisstore.Store
+	repo          repositoryAPI
+	store         *redisstore.Store
+	backendPinger backendPinger
+}
+
+type backendPinger func(context.Context, string) ([]redisstore.ModelInfo, []string, []string, error)
+
+type repositoryAPI interface {
+	CreateToken(ctx context.Context, arg repository.CreateTokenParams) (repository.Token, error)
+	GetTokenByID(ctx context.Context, arg repository.GetTokenByIDParams) (repository.Token, error)
+	GetTokenByJTI(ctx context.Context, jti string) (repository.Token, error)
+	ListTokensByUser(ctx context.Context, userID uuid.UUID) ([]repository.Token, error)
+	MarkTokenUsed(ctx context.Context, id uuid.UUID) error
+	RevokeToken(ctx context.Context, arg repository.RevokeTokenParams) (repository.Token, error)
+	UpsertUser(ctx context.Context, arg repository.UpsertUserParams) (repository.User, error)
+	GetUserByID(ctx context.Context, id uuid.UUID) (repository.User, error)
 }
 
 // New creates a Service instance.
-func New(repo *repository.Queries, store *redisstore.Store) *Service {
+func New(repo repositoryAPI, store *redisstore.Store) *Service {
 	return &Service{
-		repo:  repo,
-		store: store,
+		repo:          repo,
+		store:         store,
+		backendPinger: defaultBackendPinger,
 	}
+}
+
+func (s *Service) SetBackendPinger(pinger backendPinger) {
+	if pinger == nil {
+		s.backendPinger = defaultBackendPinger
+		return
+	}
+	s.backendPinger = pinger
 }
 
 // UpsertUser creates or updates a user record based on provider/sub.

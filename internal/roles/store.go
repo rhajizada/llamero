@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/rhajizada/llamero/internal/xslices"
 	"gopkg.in/yaml.v3"
 )
 
@@ -64,7 +65,7 @@ func Load(path string, groupMap map[string][]string) (*Store, error) {
 		if len(entry.Scopes) == 0 {
 			return nil, fmt.Errorf("role %q must define at least one scope", name)
 		}
-		roleScopes[name] = dedupe(entry.Scopes)
+		roleScopes[name] = xslices.UniqueTrimmedStrings(entry.Scopes)
 	}
 
 	if _, ok := roleScopes[doc.DefaultRole]; !ok {
@@ -110,21 +111,4 @@ func (s *Store) Resolve(externals []string) (string, []string, bool) {
 // Default returns the default role name and scopes.
 func (s *Store) Default() (string, []string) {
 	return s.defaultRole, s.roleScopes[s.defaultRole]
-}
-
-func dedupe(values []string) []string {
-	seen := make(map[string]struct{}, len(values))
-	var out []string
-	for _, v := range values {
-		v = strings.TrimSpace(v)
-		if v == "" {
-			continue
-		}
-		if _, ok := seen[v]; ok {
-			continue
-		}
-		seen[v] = struct{}{}
-		out = append(out, v)
-	}
-	return out
 }

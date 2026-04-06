@@ -1,16 +1,13 @@
 package handler
 
 import (
-	"bytes"
 	"context"
-	"errors"
-	"io"
 	"net/http"
 	"strings"
 
 	"github.com/rhajizada/llamero/internal/models"
+	backendproxy "github.com/rhajizada/llamero/internal/proxy"
 	"github.com/rhajizada/llamero/internal/requestctx"
-	"github.com/rhajizada/llamero/internal/service"
 	"github.com/rhajizada/llamero/internal/workers"
 )
 
@@ -204,12 +201,7 @@ func (h *Handler) handleBackendProxyWithBody(
 	}
 	route, err := h.svc.LookupBackendRoute(r.Context(), backendID)
 	if err != nil {
-		var appErr *service.Error
-		if errors.As(err, &appErr) {
-			writeError(w, appErr.Code, appErr.Message)
-		} else {
-			writeError(w, http.StatusBadGateway, "failed to resolve backend")
-		}
+		writeServiceError(w, err, http.StatusBadGateway, "failed to resolve backend")
 		return
 	}
 	body, err := h.readProxyPayload(r)
@@ -221,7 +213,7 @@ func (h *Handler) handleBackendProxyWithBody(
 	ctx := requestctx.WithBackendID(r.Context(), backendID)
 	req := r.WithContext(ctx)
 
-	resp, err := h.proxyBackendWithBody(req, route, method, backendPath, body)
+	resp, err := h.proxy.Forward(req, method, route.Address, backendPath, body)
 	if err != nil {
 		h.logger.ErrorContext(
 			req.Context(),
@@ -238,10 +230,7 @@ func (h *Handler) handleBackendProxyWithBody(
 	}
 	defer resp.Body.Close()
 
-	copyHeaders(w.Header(), resp.Header)
-	stripHopHeaders(w.Header())
-	w.WriteHeader(resp.StatusCode)
-	if _, copyErr := io.Copy(w, resp.Body); copyErr != nil {
+	if copyErr := backendproxy.WriteResponse(w, resp); copyErr != nil {
 		h.logger.ErrorContext(req.Context(), "write backend mutation response", "backend_id", backendID, "err", copyErr)
 	}
 
@@ -261,19 +250,14 @@ func (h *Handler) handleBackendGET(w http.ResponseWriter, r *http.Request, backe
 
 	route, err := h.svc.LookupBackendRoute(r.Context(), backendID)
 	if err != nil {
-		var appErr *service.Error
-		if errors.As(err, &appErr) {
-			writeError(w, appErr.Code, appErr.Message)
-		} else {
-			writeError(w, http.StatusBadGateway, "failed to resolve backend")
-		}
+		writeServiceError(w, err, http.StatusBadGateway, "failed to resolve backend")
 		return
 	}
 
 	ctx := requestctx.WithBackendID(r.Context(), backendID)
 	req := r.WithContext(ctx)
 
-	resp, err := h.proxyBackendGET(req, route, backendPath)
+	resp, err := h.proxy.ForwardGET(req, route.Address, backendPath)
 	if err != nil {
 		h.logger.ErrorContext(
 			req.Context(),
@@ -290,35 +274,9 @@ func (h *Handler) handleBackendGET(w http.ResponseWriter, r *http.Request, backe
 	}
 	defer resp.Body.Close()
 
-	copyHeaders(w.Header(), resp.Header)
-	stripHopHeaders(w.Header())
-	w.WriteHeader(resp.StatusCode)
-	if _, copyErr := io.Copy(w, resp.Body); copyErr != nil {
+	if copyErr := backendproxy.WriteResponse(w, resp); copyErr != nil {
 		h.logger.ErrorContext(req.Context(), "write backend get response", "backend_id", backendID, "err", copyErr)
 	}
-}
-
-func (h *Handler) proxyBackendWithBody(
-	r *http.Request,
-	route service.BackendRoute,
-	method, path string,
-	body []byte,
-) (*http.Response, error) {
-	target, err := buildBackendURL(route.Address, path, r.URL.RawQuery)
-	if err != nil {
-		return nil, err
-	}
-
-	//nolint:gosec // buildBackendURL validates the backend target before constructing the request.
-	req, err := http.NewRequestWithContext(r.Context(), method, target, bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	copyHeaders(req.Header, r.Header)
-	stripProxyHeaders(req.Header)
-	applyForwardHeaders(req, r)
-	//nolint:gosec // request target was validated by buildBackendURL.
-	return h.client.Do(req)
 }
 
 func (h *Handler) enqueueSyncBackendByID(ctx context.Context, backendID string) {

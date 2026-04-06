@@ -23,6 +23,28 @@ const (
 	backendRequestTimeout = 5 * time.Second
 )
 
+const DefaultModelOwner = defaultModelOwner
+
+func AddListModels(registry map[string]redisstore.ModelInfo, models []api.ListModelResponse) {
+	addListModels(registry, models)
+}
+
+func AddProcessModels(registry map[string]redisstore.ModelInfo, models []api.ProcessModelResponse) {
+	addProcessModels(registry, models)
+}
+
+func FirstModelName(values ...string) string {
+	return firstModelName(values...)
+}
+
+func InferOwner(remoteHost string) string {
+	return inferOwner(remoteHost)
+}
+
+func Contains(values []string, target string) bool {
+	return contains(values, target)
+}
+
 // RegisterBackends seeds Redis with backend definitions.
 func (s *Service) RegisterBackends(ctx context.Context, defs []config.BackendDefinition) error {
 	existing, err := s.store.ListBackends(ctx)
@@ -245,6 +267,13 @@ func (s *Service) selectBackend(ctx context.Context, model string) (redisstore.B
 }
 
 func (s *Service) pingBackend(ctx context.Context, baseURL string) ([]redisstore.ModelInfo, []string, []string, error) {
+	if s.backendPinger != nil {
+		return s.backendPinger(ctx, baseURL)
+	}
+	return defaultBackendPinger(ctx, baseURL)
+}
+
+func defaultBackendPinger(ctx context.Context, baseURL string) ([]redisstore.ModelInfo, []string, []string, error) {
 	parsed, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, nil, nil, err

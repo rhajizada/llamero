@@ -1,12 +1,10 @@
 package handler
 
 import (
-	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/rhajizada/llamero/internal/models"
-	"github.com/rhajizada/llamero/internal/service"
 )
 
 var (
@@ -25,12 +23,7 @@ var (
 func (h *Handler) HandleListModels(w http.ResponseWriter, r *http.Request) {
 	result, err := h.svc.ListModels(r.Context())
 	if err != nil {
-		var appErr *service.Error
-		if errors.As(err, &appErr) {
-			writeError(w, appErr.Code, appErr.Message)
-			return
-		}
-		writeError(w, http.StatusInternalServerError, "failed to list models")
+		writeServiceError(w, err, http.StatusInternalServerError, "failed to list models")
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
@@ -54,12 +47,7 @@ func (h *Handler) HandleGetModel(w http.ResponseWriter, r *http.Request) {
 	}
 	model, err := h.svc.GetModel(r.Context(), modelID)
 	if err != nil {
-		var appErr *service.Error
-		if errors.As(err, &appErr) {
-			writeError(w, appErr.Code, appErr.Message)
-			return
-		}
-		writeError(w, http.StatusInternalServerError, "failed to load model")
+		writeServiceError(w, err, http.StatusInternalServerError, "failed to load model")
 		return
 	}
 	writeJSON(w, http.StatusOK, model)

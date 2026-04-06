@@ -1,93 +1,28 @@
 package handler
 
 import (
-	"encoding/json"
-	"fmt"
+	"errors"
+	"io"
 	"net/http"
-	"net/url"
 	"strings"
+
+	"github.com/google/uuid"
+
+	"github.com/rhajizada/llamero/internal/auth"
+	"github.com/rhajizada/llamero/internal/httpjson"
+	"github.com/rhajizada/llamero/internal/middleware"
+	oauthclient "github.com/rhajizada/llamero/internal/oauth"
+	backendproxy "github.com/rhajizada/llamero/internal/proxy"
+	"github.com/rhajizada/llamero/internal/requestctx"
+	"github.com/rhajizada/llamero/internal/service"
 )
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(payload)
+	httpjson.Write(w, status, payload)
 }
 
 func writeError(w http.ResponseWriter, status int, message string) {
-	writeJSON(w, status, map[string]string{"error": message})
-}
-
-func getString(value any) string {
-	if value == nil {
-		return ""
-	}
-	switch v := value.(type) {
-	case string:
-		return v
-	case fmt.Stringer:
-		return v.String()
-	default:
-		return ""
-	}
-}
-
-func collectStrings(value any) []string {
-	if value == nil {
-		return nil
-	}
-	switch v := value.(type) {
-	case []string:
-		return v
-	case []any:
-		var out []string
-		for _, item := range v {
-			if s := getString(item); s != "" {
-				out = append(out, s)
-			}
-		}
-		return out
-	case string:
-		if v == "" {
-			return nil
-		}
-		if strings.Contains(v, ",") {
-			parts := strings.Split(v, ",")
-			for i := range parts {
-				parts[i] = strings.TrimSpace(parts[i])
-			}
-			return dedupeStrings(parts)
-		}
-		return []string{strings.TrimSpace(v)}
-	default:
-		return nil
-	}
-}
-
-func dedupeStrings(values []string) []string {
-	seen := make(map[string]struct{}, len(values))
-	var out []string
-	for _, v := range values {
-		v = strings.TrimSpace(v)
-		if v == "" {
-			continue
-		}
-		if _, ok := seen[v]; ok {
-			continue
-		}
-		seen[v] = struct{}{}
-		out = append(out, v)
-	}
-	return out
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, v := range values {
-		if strings.TrimSpace(v) != "" {
-			return v
-		}
-	}
-	return ""
+	httpjson.WriteError(w, status, message)
 }
 
 func nullableString(value string) *string {
@@ -97,46 +32,130 @@ func nullableString(value string) *string {
 	return &value
 }
 
-func buildBackendURL(baseAddress, backendPath, rawQuery string) (string, error) {
-	parsed, err := url.Parse(strings.TrimSpace(baseAddress))
+func (h *Handler) ReadProxyPayload(r *http.Request) ([]byte, error) {
+	return h.readProxyPayload(r)
+}
+
+func (h *Handler) WriteProxyReadError(w http.ResponseWriter, err error) {
+	h.writeProxyReadError(w, err)
+}
+
+func (h *Handler) LoginRedirectURL(token string) string {
+	return h.loginRedirectURL(token)
+}
+
+func (h *Handler) DetermineRole(info *oauthclient.UserInfo) (string, []string, error) {
+	return h.determineRole(info)
+}
+
+func (h *Handler) ExtractUserContext(w http.ResponseWriter, r *http.Request) (*auth.Claims, uuid.UUID, bool) {
+	return h.extractUserContext(w, r)
+}
+
+func MissingScopes(requested, allowed []string) []string {
+	return missingScopes(requested, allowed)
+}
+
+func (h *Handler) readProxyPayload(r *http.Request) ([]byte, error) {
+	defer r.Body.Close()
+	limited := io.LimitReader(r.Body, maxProxyBodyBytes+1)
+	body, err := io.ReadAll(limited)
 	if err != nil {
-		return "", fmt.Errorf("parse backend address: %w", err)
+		return nil, err
 	}
-	if parsed.Scheme != "http" && parsed.Scheme != "https" {
-		return "", fmt.Errorf("backend address must use http or https: %q", baseAddress)
+	if int64(len(body)) > maxProxyBodyBytes {
+		return nil, errProxyBodyTooLarge
 	}
-	if parsed.Host == "" {
-		return "", fmt.Errorf("backend address missing host: %q", baseAddress)
+	return body, nil
+}
+
+func (h *Handler) writeProxyReadError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, errProxyBodyTooLarge):
+		writeError(w, http.StatusRequestEntityTooLarge, "request body too large")
+	default:
+		writeError(w, http.StatusBadRequest, "unable to read request body")
 	}
-	if parsed.User != nil {
-		return "", fmt.Errorf("backend address must not include credentials: %q", baseAddress)
+}
+
+func (h *Handler) forwardLLMRequest(w http.ResponseWriter, r *http.Request, model string, body []byte) {
+	route, err := h.svc.RouteBackend(r.Context(), model)
+	if err != nil {
+		h.handleRoutingError(w, err)
+		return
 	}
-	if parsed.Opaque != "" {
-		return "", fmt.Errorf("backend address must be hierarchical: %q", baseAddress)
+	h.forwardLLMRequestToRoute(w, r, route, body)
+}
+
+func (h *Handler) forwardLLMRequestToRoute(
+	w http.ResponseWriter,
+	r *http.Request,
+	route service.BackendRoute,
+	body []byte,
+) {
+	ctx := requestctx.WithBackendID(r.Context(), route.ID)
+	req := r.WithContext(ctx)
+
+	resp, err := h.proxy.ForwardLLM(req, route.Address, body)
+	if err != nil {
+		h.logger.ErrorContext(req.Context(), "proxy request failed", "backend_id", route.ID, "err", err)
+		writeError(w, http.StatusBadGateway, "backend request failed")
+		return
 	}
-	if parsed.Fragment != "" {
-		return "", fmt.Errorf("backend address must not include fragment: %q", baseAddress)
+	defer resp.Body.Close()
+
+	if copyErr := backendproxy.WriteResponse(w, resp); copyErr != nil {
+		h.logger.ErrorContext(req.Context(), "write proxied body", "err", copyErr)
+	}
+}
+
+func (h *Handler) handleRoutingError(w http.ResponseWriter, err error) {
+	if errors.Is(err, service.ErrNoHealthyBackends) {
+		writeError(w, http.StatusServiceUnavailable, "no healthy backends available")
+		return
+	}
+	h.logger.Error("route backend", "err", err)
+	writeError(w, http.StatusBadGateway, "failed to select backend")
+}
+
+func writeServiceError(w http.ResponseWriter, err error, status int, fallback string) {
+	var appErr *service.Error
+	if errors.As(err, &appErr) {
+		writeError(w, appErr.Code, appErr.Message)
+		return
+	}
+	writeError(w, status, fallback)
+}
+
+func (h *Handler) extractUserContext(w http.ResponseWriter, r *http.Request) (*auth.Claims, uuid.UUID, bool) {
+	claims, ok := middleware.ClaimsFromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "missing authentication context")
+		return nil, uuid.Nil, false
 	}
 
-	target := *parsed
-	target.RawQuery = ""
-	target.Fragment = ""
+	userID, err := uuid.Parse(claims.Subject)
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "invalid user identifier")
+		return nil, uuid.Nil, false
+	}
 
-	backendPath = strings.TrimSpace(backendPath)
-	if backendPath != "" {
-		if !strings.HasPrefix(backendPath, "/") {
-			backendPath = "/" + backendPath
+	return claims, userID, true
+}
+
+func missingScopes(requested, allowed []string) []string {
+	if len(requested) == 0 {
+		return nil
+	}
+	allowedSet := make(map[string]struct{}, len(allowed))
+	for _, scope := range allowed {
+		allowedSet[scope] = struct{}{}
+	}
+	var invalid []string
+	for _, scope := range requested {
+		if _, ok := allowedSet[scope]; !ok {
+			invalid = append(invalid, scope)
 		}
-		basePath := strings.TrimRight(target.Path, "/")
-		if basePath == "" {
-			target.Path = backendPath
-		} else {
-			target.Path = basePath + backendPath
-		}
 	}
-	if rawQuery != "" {
-		target.RawQuery = rawQuery
-	}
-
-	return target.String(), nil
+	return invalid
 }
