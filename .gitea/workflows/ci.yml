@@ -13,8 +13,8 @@ env:
   GOCACHE: /go_cache
 
 jobs:
-  lint:
-    name: lint
+  test:
+    name: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,9 +37,38 @@ jobs:
       - name: Static analysis
         run: go vet ./...
 
+      - name: Run tests
+        run: go tool gotestsum --junitfile results/unit-tests.xml
+
+  eslint:
+    name: eslint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+
+      - run: bun install --frozen-lockfile
+        working-directory: ui
+
+      - name: Lint with eslint
+        shell: bash
+        run: bun run lint
+        working-directory: ui
+
+      - name: Run npm audit
+        shell: bash
+        run: bun audit
+        working-directory: ui
+
   build-images:
     name: Build image
     runs-on: ubuntu-latest
+    needs:
+      - test
+      - eslint
 
     strategy:
       matrix:

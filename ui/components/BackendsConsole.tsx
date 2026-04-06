@@ -356,7 +356,7 @@ export const BackendsConsole = () => {
         const api = createApiClient(token);
         const resp = await api.backendsTagsList(selectedBackend);
         setResult(JSON.stringify(resp.data, null, 2));
-      } catch (err) {
+  } catch {
         const message = getErrorMessage(err, "Action failed");
         setResult(message);
         toast.error(message || "Unable to load models for backend");

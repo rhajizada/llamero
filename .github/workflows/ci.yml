@@ -39,8 +39,8 @@ jobs:
           echo "image_version=$image_version" >> "$GITHUB_OUTPUT"
           echo "release=$release" >> "$GITHUB_OUTPUT"
 
-  golangci-lint:
-    name: golangci-lint
+  test:
+    name: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -150,7 +150,7 @@ jobs:
 
       - name: Lint with eslint
         shell: bash
-        run: bun run lint --format=unix
+        run: bun run lint
         working-directory: ui
 
       - name: Run npm audit
@@ -161,8 +161,8 @@ jobs:
   build-images:
     needs:
       - env
-      - golangci-lint
       - eslint
+      - test
     name: Build ${{ matrix.app }} image
     runs-on: ubuntu-latest
 
