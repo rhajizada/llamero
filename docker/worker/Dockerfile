@@ -11,7 +11,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
   -o /src/bin/worker \
   ./cmd/worker
 
-FROM alpine:3.18
+FROM alpine:3.23
 RUN apk add --no-cache ca-certificates
 
 WORKDIR /app
