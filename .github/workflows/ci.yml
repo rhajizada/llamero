@@ -150,7 +150,7 @@ jobs:
 
       - name: Lint with eslint
         shell: bash
-        run: bun run lint --format=compact
+        run: bun run lint --format=unix
         working-directory: ui
 
       - name: Run npm audit
