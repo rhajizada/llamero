@@ -1,0 +1,45 @@
+name: Sync Bun Lock
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    paths:
+      - ui/package.json
+
+permissions:
+  contents: write
+
+jobs:
+  sync-bun-lock:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out Dependabot branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Update bun.lock
+        run: bun install
+        working-directory: ui
+
+      - name: Commit bun.lock changes
+        shell: bash
+        run: |
+          if git diff --quiet -- ui/bun.lock; then
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ui/bun.lock
+          git commit -m "sync bun.lock"
+          git push
