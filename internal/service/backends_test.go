@@ -39,8 +39,16 @@ func TestModelRegistryHelpers(t *testing.T) {
 				}})
 
 				assert.Len(t, registry, 2)
-				assert.Equal(t, redisstore.ModelInfo{Name: "llama3", CreatedAt: now, OwnedBy: "registry.example.com"}, registry["llama3"])
-				assert.Equal(t, redisstore.ModelInfo{Name: "mistral", CreatedAt: later, OwnedBy: service.DefaultModelOwner}, registry["mistral"])
+				assert.Equal(
+					t,
+					redisstore.ModelInfo{Name: "llama3", CreatedAt: now, OwnedBy: "registry.example.com"},
+					registry["llama3"],
+				)
+				assert.Equal(
+					t,
+					redisstore.ModelInfo{Name: "mistral", CreatedAt: later, OwnedBy: service.DefaultModelOwner},
+					registry["mistral"],
+				)
 			},
 		},
 		{

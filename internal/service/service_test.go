@@ -88,7 +88,11 @@ func TestBackendRoutingAndModelQueries(t *testing.T) {
 				require.NoError(t, err)
 				require.Len(t, list.Data, 4)
 				assert.Equal(t, "list", list.Object)
-				assert.Equal(t, []string{"deepseek", "llama3", "mistral", "phi4"}, []string{list.Data[0].ID, list.Data[1].ID, list.Data[2].ID, list.Data[3].ID})
+				assert.Equal(
+					t,
+					[]string{"deepseek", "llama3", "mistral", "phi4"},
+					[]string{list.Data[0].ID, list.Data[1].ID, list.Data[2].ID, list.Data[3].ID},
+				)
 			},
 		},
 		{
@@ -175,9 +179,15 @@ func TestRegisterBackends(t *testing.T) {
 			run: func(t *testing.T) {
 				store := newTestRedisStore(t)
 				svc := service.New(nil, store)
-				require.NoError(t, store.SaveBackend(ctx, redisstore.BackendStatus{ID: "stale", Address: "http://stale"}, 0))
+				require.NoError(
+					t,
+					store.SaveBackend(ctx, redisstore.BackendStatus{ID: "stale", Address: "http://stale"}, 0),
+				)
 
-				defs := []config.BackendDefinition{{ID: "backend-a", Address: "http://backend-a:11434", Tags: []string{"gpu"}, Weight: 2}, {ID: "backend-b", Address: "http://backend-b:11434", Tags: []string{"cpu"}, Weight: 1}}
+				defs := []config.BackendDefinition{
+					{ID: "backend-a", Address: "http://backend-a:11434", Tags: []string{"gpu"}, Weight: 2},
+					{ID: "backend-b", Address: "http://backend-b:11434", Tags: []string{"cpu"}, Weight: 1},
+				}
 				require.NoError(t, svc.RegisterBackends(ctx, defs))
 
 				ids, err := store.ListBackendIDs(ctx, 0, -1)
@@ -190,7 +200,10 @@ func TestRegisterBackends(t *testing.T) {
 			run: func(t *testing.T) {
 				store := newTestRedisStore(t)
 				svc := service.New(nil, store)
-				err := svc.RegisterBackends(ctx, []config.BackendDefinition{{ID: "dup", Address: "http://a"}, {ID: "dup", Address: "http://b"}})
+				err := svc.RegisterBackends(
+					ctx,
+					[]config.BackendDefinition{{ID: "dup", Address: "http://a"}, {ID: "dup", Address: "http://b"}},
+				)
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), "duplicate backend id")
 			},
@@ -200,7 +213,13 @@ func TestRegisterBackends(t *testing.T) {
 			run: func(t *testing.T) {
 				store := newTestRedisStore(t)
 				svc := service.New(nil, store)
-				err := svc.RegisterBackends(ctx, []config.BackendDefinition{{ID: "a", Address: "http://shared"}, {ID: "b", Address: "http://shared"}})
+				err := svc.RegisterBackends(
+					ctx,
+					[]config.BackendDefinition{
+						{ID: "a", Address: "http://shared"},
+						{ID: "b", Address: "http://shared"},
+					},
+				)
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), "reused")
 			},
@@ -273,13 +292,21 @@ func TestSyncBackends(t *testing.T) {
 			run: func(t *testing.T) {
 				store := newTestRedisStore(t)
 				svc := service.New(nil, store)
-				svc.SetBackendPinger(func(_ context.Context, baseURL string) ([]redisstore.ModelInfo, []string, []string, error) {
-					if baseURL == "http://bad-backend" {
-						return nil, nil, nil, errors.New("backend down")
-					}
-					now := time.Unix(1_700_000_000, 0)
-					return []redisstore.ModelInfo{{Name: "llama3", CreatedAt: now, OwnedBy: "library"}}, []string{"llama3"}, []string{"llama3"}, nil
-				})
+				svc.SetBackendPinger(
+					func(_ context.Context, baseURL string) ([]redisstore.ModelInfo, []string, []string, error) {
+						if baseURL == "http://bad-backend" {
+							return nil, nil, nil, errors.New("backend down")
+						}
+						now := time.Unix(1_700_000_000, 0)
+						return []redisstore.ModelInfo{
+								{Name: "llama3", CreatedAt: now, OwnedBy: "library"},
+							}, []string{
+								"llama3",
+							}, []string{
+								"llama3",
+							}, nil
+					},
+				)
 
 				for _, backend := range []redisstore.BackendStatus{{ID: "backend-a", Address: "http://backend-a:11434", Healthy: false}, {ID: "backend-b", Address: "http://bad-backend", Healthy: true}} {
 					require.NoError(t, store.SaveBackend(ctx, backend, 0))
@@ -303,11 +330,26 @@ func TestSyncBackends(t *testing.T) {
 			run: func(t *testing.T) {
 				store := newTestRedisStore(t)
 				svc := service.New(nil, store)
-				svc.SetBackendPinger(func(_ context.Context, _ string) ([]redisstore.ModelInfo, []string, []string, error) {
-					return []redisstore.ModelInfo{{Name: "llama3", CreatedAt: time.Unix(1_700_000_000, 0), OwnedBy: "library"}}, []string{"llama3"}, []string{"llama3"}, nil
-				})
+				svc.SetBackendPinger(
+					func(_ context.Context, _ string) ([]redisstore.ModelInfo, []string, []string, error) {
+						return []redisstore.ModelInfo{
+								{Name: "llama3", CreatedAt: time.Unix(1_700_000_000, 0), OwnedBy: "library"},
+							}, []string{
+								"llama3",
+							}, []string{
+								"llama3",
+							}, nil
+					},
+				)
 
-				require.NoError(t, store.SaveBackend(ctx, redisstore.BackendStatus{ID: "backend-a", Address: "http://backend-a:11434", Healthy: false}, 0))
+				require.NoError(
+					t,
+					store.SaveBackend(
+						ctx,
+						redisstore.BackendStatus{ID: "backend-a", Address: "http://backend-a:11434", Healthy: false},
+						0,
+					),
+				)
 				require.NoError(t, svc.SyncBackendByID(ctx, "backend-a"))
 
 				require.Error(t, svc.SyncBackendByID(ctx, " "))
@@ -326,7 +368,10 @@ func TestSyncBackends(t *testing.T) {
 					return nil, nil, nil, nil
 				})
 				svc.SetBackendPinger(nil)
-				require.NoError(t, store.SaveBackend(ctx, redisstore.BackendStatus{ID: "backend-a", Address: "http://127.0.0.1:1"}, 0))
+				require.NoError(
+					t,
+					store.SaveBackend(ctx, redisstore.BackendStatus{ID: "backend-a", Address: "http://127.0.0.1:1"}, 0),
+				)
 				require.NoError(t, svc.SyncBackends(ctx))
 				backend, err := store.GetBackend(ctx, "backend-a")
 				require.NoError(t, err)
@@ -344,9 +389,17 @@ func TestFetchInstalledModelsAndRouteResponsesCreate(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/tags":
-			require.NoError(t, json.NewEncoder(w).Encode(map[string]any{"models": []map[string]any{{"name": "llama3", "modified_at": "2026-04-05T12:00:00Z", "digest": "abc", "description": "ignored"}}}))
+			assert.NoError(
+				t,
+				json.NewEncoder(w).
+					Encode(map[string]any{"models": []map[string]any{{"name": "llama3", "modified_at": "2026-04-05T12:00:00Z", "digest": "abc", "description": "ignored"}}}),
+			)
 		case "/api/ps":
-			require.NoError(t, json.NewEncoder(w).Encode(map[string]any{"models": []map[string]any{{"name": "llama3", "model": "llama3", "expires_at": "2026-04-05T13:00:00Z"}}}))
+			assert.NoError(
+				t,
+				json.NewEncoder(w).
+					Encode(map[string]any{"models": []map[string]any{{"name": "llama3", "model": "llama3", "expires_at": "2026-04-05T13:00:00Z"}}}),
+			)
 		default:
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
@@ -356,7 +409,10 @@ func TestFetchInstalledModelsAndRouteResponsesCreate(t *testing.T) {
 	ctx := context.Background()
 	store := newTestRedisStore(t)
 	svc := service.New(nil, store)
-	require.NoError(t, store.SaveBackend(ctx, redisstore.BackendStatus{ID: "backend-a", Address: server.URL, Healthy: true}, 0))
+	require.NoError(
+		t,
+		store.SaveBackend(ctx, redisstore.BackendStatus{ID: "backend-a", Address: server.URL, Healthy: true}, 0),
+	)
 
 	tests := []struct {
 		name string
@@ -402,7 +458,19 @@ func TestUserServiceUsesDatabase(t *testing.T) {
 			provider := "oidc-" + uuid.NewString()
 			sub := "sub-" + uuid.NewString()
 
-			created, err := svc.UpsertUser(ctx, repository.UpsertUserParams{Sub: sub, Provider: provider, Email: uuid.NewString() + "@example.com", DisplayName: &displayName, Role: "admin", Scopes: []string{"models:list"}, Groups: []string{"admins"}, LastLoginAt: &now})
+			created, err := svc.UpsertUser(
+				ctx,
+				repository.UpsertUserParams{
+					Sub:         sub,
+					Provider:    provider,
+					Email:       uuid.NewString() + "@example.com",
+					DisplayName: &displayName,
+					Role:        "admin",
+					Scopes:      []string{"models:list"},
+					Groups:      []string{"admins"},
+					LastLoginAt: &now,
+				},
+			)
 			require.NoError(t, err)
 
 			fetched, getErr := svc.GetUser(ctx, created.ID)
@@ -415,10 +483,34 @@ func TestUserServiceUsesDatabase(t *testing.T) {
 			sub := "sub-" + uuid.NewString()
 			email := uuid.NewString() + "@example.com"
 
-			created, err := svc.UpsertUser(ctx, repository.UpsertUserParams{Sub: sub, Provider: provider, Email: email, DisplayName: &displayName, Role: "member", Scopes: []string{"models:list"}, Groups: []string{"users"}, LastLoginAt: &now})
+			created, err := svc.UpsertUser(
+				ctx,
+				repository.UpsertUserParams{
+					Sub:         sub,
+					Provider:    provider,
+					Email:       email,
+					DisplayName: &displayName,
+					Role:        "member",
+					Scopes:      []string{"models:list"},
+					Groups:      []string{"users"},
+					LastLoginAt: &now,
+				},
+			)
 			require.NoError(t, err)
 
-			updated, updateErr := svc.UpsertUser(ctx, repository.UpsertUserParams{Sub: sub, Provider: provider, Email: email, DisplayName: &updatedName, Role: "admin", Scopes: []string{"models:list", "tokens:write"}, Groups: []string{"admins"}, LastLoginAt: &updatedAt})
+			updated, updateErr := svc.UpsertUser(
+				ctx,
+				repository.UpsertUserParams{
+					Sub:         sub,
+					Provider:    provider,
+					Email:       email,
+					DisplayName: &updatedName,
+					Role:        "admin",
+					Scopes:      []string{"models:list", "tokens:write"},
+					Groups:      []string{"admins"},
+					LastLoginAt: &updatedAt,
+				},
+			)
 			require.NoError(t, updateErr)
 			assert.Equal(t, created.ID, updated.ID)
 			assert.Equal(t, "admin", updated.Role)
@@ -436,14 +528,35 @@ func TestUserServiceUsesDatabase(t *testing.T) {
 	}
 }
 
-func seedServiceUser(t *testing.T, ctx context.Context, repo *repository.Queries) repository.User {
+func seedServiceUser(ctx context.Context, t *testing.T, repo *repository.Queries) repository.User {
 	t.Helper()
 
 	displayName := "Test User"
 	lastLoginAt := time.Now().UTC().Truncate(time.Second)
-	user, err := repo.UpsertUser(ctx, repository.UpsertUserParams{Sub: "sub-" + uuid.NewString(), Provider: "oidc-" + uuid.NewString(), Email: uuid.NewString() + "@example.com", DisplayName: &displayName, Role: "member", Scopes: []string{"models:list"}, Groups: []string{"users"}, LastLoginAt: &lastLoginAt})
+	user, err := repo.UpsertUser(
+		ctx,
+		repository.UpsertUserParams{
+			Sub:         "sub-" + uuid.NewString(),
+			Provider:    "oidc-" + uuid.NewString(),
+			Email:       uuid.NewString() + "@example.com",
+			DisplayName: &displayName,
+			Role:        "member",
+			Scopes:      []string{"models:list"},
+			Groups:      []string{"users"},
+			LastLoginAt: &lastLoginAt,
+		},
+	)
 	require.NoError(t, err)
 	return user
+}
+
+func assertServiceError(t *testing.T, err error, code int) {
+	t.Helper()
+
+	var serviceErr *service.Error
+	require.Error(t, err)
+	require.ErrorAs(t, err, &serviceErr)
+	assert.Equal(t, code, serviceErr.Code)
 }
 
 func newTestRedisStore(t *testing.T) *redisstore.Store {

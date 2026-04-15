@@ -33,11 +33,42 @@ roles:
 		logger  *slog.Logger
 		wantErr string
 	}{
-		{name: "rejects nil config", roles: roleStore, svc: &fakeService{}, tasks: &asynq.Client{}, wantErr: "config is required"},
-		{name: "rejects nil roles", cfg: validCfg, svc: &fakeService{}, tasks: &asynq.Client{}, wantErr: "roles store is required"},
-		{name: "rejects nil service", cfg: validCfg, roles: roleStore, nilSvc: true, tasks: &asynq.Client{}, wantErr: "service is required"},
-		{name: "rejects nil task client", cfg: validCfg, roles: roleStore, svc: &fakeService{}, wantErr: "task client is required"},
-		{name: "builds handler with default logger", cfg: validCfg, roles: roleStore, svc: &fakeService{}, tasks: &asynq.Client{}},
+		{
+			name:    "rejects nil config",
+			roles:   roleStore,
+			svc:     &fakeService{},
+			tasks:   &asynq.Client{},
+			wantErr: "config is required",
+		},
+		{
+			name:    "rejects nil roles",
+			cfg:     validCfg,
+			svc:     &fakeService{},
+			tasks:   &asynq.Client{},
+			wantErr: "roles store is required",
+		},
+		{
+			name:    "rejects nil service",
+			cfg:     validCfg,
+			roles:   roleStore,
+			nilSvc:  true,
+			tasks:   &asynq.Client{},
+			wantErr: "service is required",
+		},
+		{
+			name:    "rejects nil task client",
+			cfg:     validCfg,
+			roles:   roleStore,
+			svc:     &fakeService{},
+			wantErr: "task client is required",
+		},
+		{
+			name:  "builds handler with default logger",
+			cfg:   validCfg,
+			roles: roleStore,
+			svc:   &fakeService{},
+			tasks: &asynq.Client{},
+		},
 	}
 
 	for _, tc := range tests {

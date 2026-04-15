@@ -24,6 +24,8 @@ import (
 	"github.com/rhajizada/llamero/internal/roles"
 )
 
+const postgresReadyLogOccurrences = 2
+
 func MustWriteEd25519JWTConfig(t *testing.T) config.JWTConfig {
 	t.Helper()
 
@@ -117,7 +119,7 @@ func MustStartPostgres(t *testing.T) (context.Context, string) {
 		tcpostgres.WithPassword("postgres"),
 		testcontainers.WithWaitStrategy(
 			wait.ForLog("database system is ready to accept connections").
-				WithOccurrence(2).
+				WithOccurrence(postgresReadyLogOccurrences).
 				WithStartupTimeout(time.Minute),
 		),
 	)
@@ -126,8 +128,8 @@ func MustStartPostgres(t *testing.T) (context.Context, string) {
 	}
 
 	t.Cleanup(func() {
-		if err := container.Terminate(context.Background()); err != nil {
-			t.Errorf("terminate postgres container: %v", err)
+		if terminateErr := container.Terminate(context.Background()); terminateErr != nil {
+			t.Errorf("terminate postgres container: %v", terminateErr)
 		}
 	})
 

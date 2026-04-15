@@ -471,3 +471,4 @@ linters:
           - wrapcheck
     paths:
       - docs
+      - ui

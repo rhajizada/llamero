@@ -22,7 +22,11 @@ func TestAddModel(t *testing.T) {
 				service.AddModel(dest, " llama3 ", 100, "backend-a")
 				service.AddModel(dest, "llama3", 50, "")
 
-				assert.Equal(t, models.Model{ID: "llama3", Object: "model", Created: 50, OwnedBy: "backend-a"}, dest["llama3"])
+				assert.Equal(
+					t,
+					models.Model{ID: "llama3", Object: "model", Created: 50, OwnedBy: "backend-a"},
+					dest["llama3"],
+				)
 			},
 		},
 		{
