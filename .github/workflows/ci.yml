@@ -63,6 +63,9 @@ jobs:
       - name: Static analysis
         run: go vet ./...
 
+      - name: Validate Docker availability for integration tests
+        run: docker info
+
       - name: Run tests
         if: ${{ !(github.ref == 'refs/heads/main' && github.event_name == 'push') }}
         run: go tool gotestsum --junitfile results/unit-tests.xml
@@ -77,16 +80,10 @@ jobs:
         if: github.ref == 'refs/heads/main'
         run: |
           set -euo pipefail
-          mod="$(go list -m -f '{{.Path}}')"
-          pkgs="$(go list ./... \
-            | grep -vE '/(docs|vendor|mocks|testdata|internal/repository|internal/testutil)(/|$)' \
-            | grep -vFx "$mod" || true)"
-
-          if [ -z "$pkgs" ]; then
-            echo "No packages matched for coverage." >&2
-            exit 1
-          fi
-          go tool gotestsum -- -coverprofile=coverage.out $pkgs > /dev/null
+          docker info > /dev/null
+          pkgs="$(go list ./... | grep -vE '^github.com/rhajizada/llamero/(cmd($|/)|docs$|internal/testutil$)')"
+          coverpkg="$(printf '%s' "$pkgs" | tr '\n' ',' | sed 's/,$//')"
+          go tool gotestsum -- -coverpkg="$coverpkg" -coverprofile=coverage.out $pkgs > /dev/null
         shell: bash
 
       - name: Parse coverage

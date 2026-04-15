@@ -4,23 +4,37 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/rhajizada/llamero/internal/service"
 )
 
 func TestErrorFormattingAndUnwrap(t *testing.T) {
-	t.Parallel()
-
 	base := errors.New("boom")
-	err := &service.Error{Code: 502, Message: "backend failed", Err: base}
-	if got := err.Error(); got != "backend failed: boom" {
-		t.Fatalf("unexpected error string: %q", got)
-	}
-	if !errors.Is(err, base) {
-		t.Fatal("expected errors.Is to match wrapped error")
+
+	tests := []struct {
+		name       string
+		err        *service.Error
+		wantText   string
+		wantIsBase bool
+	}{
+		{
+			name:       "formats wrapped error",
+			err:        &service.Error{Code: 502, Message: "backend failed", Err: base},
+			wantText:   "backend failed: boom",
+			wantIsBase: true,
+		},
+		{
+			name:     "formats plain message",
+			err:      &service.Error{Code: 404, Message: "not found"},
+			wantText: "not found",
+		},
 	}
 
-	err = &service.Error{Code: 404, Message: "not found"}
-	if got := err.Error(); got != "not found" {
-		t.Fatalf("unexpected message without wrapped error: %q", got)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.wantText, tc.err.Error())
+			assert.Equal(t, tc.wantIsBase, errors.Is(tc.err, base))
+		})
 	}
 }

@@ -1,18 +1,26 @@
 package testutil
 
 import (
+	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/testcontainers/testcontainers-go"
+	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
+	"github.com/testcontainers/testcontainers-go/wait"
+
 	"github.com/rhajizada/llamero/internal/auth"
 	"github.com/rhajizada/llamero/internal/config"
+	"github.com/rhajizada/llamero/internal/db"
 	"github.com/rhajizada/llamero/internal/roles"
 )
 
@@ -83,4 +91,68 @@ func MustLoadRoles(t *testing.T, raw string, groups map[string][]string) *roles.
 		t.Fatalf("load roles: %v", err)
 	}
 	return store
+}
+
+func MigrationsDir(t *testing.T) string {
+	t.Helper()
+
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("resolve testutil path: runtime caller unavailable")
+	}
+
+	return filepath.Join(filepath.Dir(file), "..", "..", "data", "sql", "migrations")
+}
+
+func MustStartPostgres(t *testing.T) (context.Context, string) {
+	t.Helper()
+	testcontainers.SkipIfProviderIsNotHealthy(t)
+
+	ctx := context.Background()
+	container, err := tcpostgres.Run(
+		ctx,
+		"postgres:16-alpine",
+		tcpostgres.WithDatabase("llamero"),
+		tcpostgres.WithUsername("postgres"),
+		tcpostgres.WithPassword("postgres"),
+		testcontainers.WithWaitStrategy(
+			wait.ForLog("database system is ready to accept connections").
+				WithOccurrence(2).
+				WithStartupTimeout(time.Minute),
+		),
+	)
+	if err != nil {
+		t.Fatalf("start postgres container: %v", err)
+	}
+
+	t.Cleanup(func() {
+		if err := container.Terminate(context.Background()); err != nil {
+			t.Errorf("terminate postgres container: %v", err)
+		}
+	})
+
+	dsn, err := container.ConnectionString(ctx, "sslmode=disable")
+	if err != nil {
+		t.Fatalf("build postgres connection string: %v", err)
+	}
+
+	return ctx, dsn
+}
+
+func MustOpenMigratedPostgres(t *testing.T) *pgxpool.Pool {
+	t.Helper()
+
+	ctx, dsn := MustStartPostgres(t)
+	if err := db.Migrate(ctx, dsn, MigrationsDir(t)); err != nil {
+		t.Fatalf("migrate postgres: %v", err)
+	}
+
+	pool, err := db.Connect(ctx, dsn)
+	if err != nil {
+		t.Fatalf("connect postgres: %v", err)
+	}
+
+	t.Cleanup(pool.Close)
+
+	return pool
 }

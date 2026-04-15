@@ -50,6 +50,38 @@ roles:
 	}
 }
 
+func TestNewTestServerDefaults(t *testing.T) {
+	tests := []struct {
+		name   string
+		cfg    *config.ServerConfig
+		router http.Handler
+		logger *slog.Logger
+	}{
+		{name: "defaults router and logger", cfg: &config.ServerConfig{Address: "127.0.0.1:0"}},
+		{name: "preserves provided router and logger", cfg: &config.ServerConfig{Address: "127.0.0.1:0"}, router: http.NewServeMux(), logger: slog.Default()},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := server.NewTestServer(tc.cfg, tc.router, tc.logger)
+			if srv == nil {
+				t.Fatal("expected server")
+			}
+			if err := srv.Run(runCanceledContext(t)); err != nil {
+				t.Fatalf("unexpected Run error: %v", err)
+			}
+		})
+	}
+}
+
+func runCanceledContext(t *testing.T) context.Context {
+	t.Helper()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	return ctx
+}
+
 func TestNewRejectsInvalidJWTConfig(t *testing.T) {
 	t.Parallel()
 
