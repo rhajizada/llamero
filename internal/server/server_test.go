@@ -58,7 +58,12 @@ func TestNewTestServerDefaults(t *testing.T) {
 		logger *slog.Logger
 	}{
 		{name: "defaults router and logger", cfg: &config.ServerConfig{Address: "127.0.0.1:0"}},
-		{name: "preserves provided router and logger", cfg: &config.ServerConfig{Address: "127.0.0.1:0"}, router: http.NewServeMux(), logger: slog.Default()},
+		{
+			name:   "preserves provided router and logger",
+			cfg:    &config.ServerConfig{Address: "127.0.0.1:0"},
+			router: http.NewServeMux(),
+			logger: slog.Default(),
+		},
 	}
 
 	for _, tc := range tests {
