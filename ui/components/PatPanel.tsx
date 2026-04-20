@@ -53,6 +53,22 @@ const formatDate = (value?: string) => {
   return utcDateTimeFormatter.format(new Date(value));
 };
 
+const getTokenStatus = (
+  token: Pick<PersonalAccessToken, "revoked" | "expires_at">,
+  now = Date.now(),
+) => {
+  if (token.revoked) return "revoked" as const;
+
+  if (token.expires_at) {
+    const expiresAt = Date.parse(token.expires_at);
+    if (!Number.isNaN(expiresAt) && expiresAt <= now) {
+      return "expired" as const;
+    }
+  }
+
+  return "active" as const;
+};
+
 export const PatPanel = () => {
   const { token, claims } = useAuth();
   const [tokens, setTokens] = useState<PersonalAccessToken[]>([]);
@@ -249,10 +265,14 @@ export const PatPanel = () => {
                     </tr>
                   ) : (
                     tokens.map((item) => {
-                      const isRevoked = Boolean(item.revoked);
-                      const badgeClass = isRevoked
-                        ? "bg-destructive/20 text-destructive"
-                        : "bg-emerald-500/20 text-emerald-500";
+                      const status = getTokenStatus(item);
+                      const isRevoked = status === "revoked";
+                      const badgeClass =
+                        status === "revoked"
+                          ? "bg-destructive/20 text-destructive"
+                          : status === "expired"
+                            ? "bg-amber-500/20 text-amber-500"
+                            : "bg-emerald-500/20 text-emerald-500";
                       return (
                         <tr key={item.id} className="border-t border-border/60">
                           <td className="px-4 py-3 font-medium">
@@ -268,7 +288,7 @@ export const PatPanel = () => {
                             <span
                               className={`rounded-full px-2 py-1 text-xs font-semibold ${badgeClass}`}
                             >
-                              {isRevoked ? "revoked" : "active"}
+                              {status}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-right">
