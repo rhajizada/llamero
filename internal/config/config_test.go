@@ -70,7 +70,7 @@ backends:
 				require.NoError(t, err)
 				require.Len(t, backends, 2)
 				assert.Equal(t, "primary", backends[0].ID)
-				assert.EqualValues(t, 2, backends[0].Weight)
+				assert.Equal(t, 2, backends[0].Weight)
 			},
 		},
 	}

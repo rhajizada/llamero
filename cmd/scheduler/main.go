@@ -26,15 +26,15 @@ func main() {
 	}
 }
 
-func Run(logger *slog.Logger) error {
+func Run(_ *slog.Logger) error {
 	cfg, err := config.LoadScheduler()
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
 
 	scheduler := asynq.NewScheduler(NewRedisClientOpt(cfg.Store), nil)
-	if err := RegisterBackendPingSchedule(scheduler, cfg.Scheduler.BackendPingSpec); err != nil {
-		return err
+	if registerErr := RegisterBackendPingSchedule(scheduler, cfg.Scheduler.BackendPingSpec); registerErr != nil {
+		return registerErr
 	}
 
 	return scheduler.Run()
@@ -54,8 +54,8 @@ func RegisterBackendPingSchedule(scheduler schedulerRegistrar, spec string) erro
 	if err != nil {
 		return fmt.Errorf("create task: %w", err)
 	}
-	if _, err := scheduler.Register(spec, task); err != nil {
-		return fmt.Errorf("register schedule: %w", err)
+	if _, registerErr := scheduler.Register(spec, task); registerErr != nil {
+		return fmt.Errorf("register schedule: %w", registerErr)
 	}
 	return nil
 }

@@ -56,7 +56,10 @@ func TestKeyLoadingAndJWTHelpers(t *testing.T) {
 				path := filepath.Join(t.TempDir(), "private.der")
 				require.NoError(t, os.WriteFile(path, privDER, 0o600))
 
-				verifier, err := auth.NewTokenVerifier(config.JWTConfig{PrivateKeyPath: path, SigningMethod: "EdDSA"})
+				verifier, err := auth.NewTokenVerifier(config.JWTConfig{
+					PrivateKeyPath: path,
+					SigningMethod:  "EdDSA",
+				})
 				require.NoError(t, err)
 				assert.NotNil(t, verifier)
 			},
@@ -68,7 +71,10 @@ func TestKeyLoadingAndJWTHelpers(t *testing.T) {
 				privPath := filepath.Join(dir, "invalid-private.pem")
 				require.NoError(t, os.WriteFile(privPath, []byte("not pem"), 0o600))
 
-				_, err := auth.NewTokenIssuer(config.JWTConfig{PrivateKeyPath: privPath, SigningMethod: "EdDSA"})
+				_, err := auth.NewTokenIssuer(config.JWTConfig{
+					PrivateKeyPath: privPath,
+					SigningMethod:  "EdDSA",
+				})
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), "invalid PEM block")
 			},
@@ -82,7 +88,11 @@ func TestKeyLoadingAndJWTHelpers(t *testing.T) {
 				require.NoError(t, os.WriteFile(privPath, []byte("not pem"), 0o600))
 				require.NoError(t, os.WriteFile(pubPath, []byte("not pem"), 0o600))
 
-				_, err := auth.NewTokenVerifier(config.JWTConfig{PublicKeyPath: pubPath, PrivateKeyPath: privPath, SigningMethod: "EdDSA"})
+				_, err := auth.NewTokenVerifier(config.JWTConfig{
+					PublicKeyPath:  pubPath,
+					PrivateKeyPath: privPath,
+					SigningMethod:  "EdDSA",
+				})
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), "invalid PEM block")
 			},

@@ -46,7 +46,15 @@ func TestTokenIssuerHelpers(t *testing.T) {
 				issuer, err := auth.NewTokenIssuer(cfg)
 				require.NoError(t, err)
 
-				_, issueErr := issuer.IssuePAT(uuid.New(), "ext-123", "user@example.com", "admin", []string{"models:read"}, "", time.Now().Add(time.Hour))
+				_, issueErr := issuer.IssuePAT(
+					uuid.New(),
+					"ext-123",
+					"user@example.com",
+					"admin",
+					[]string{"models:read"},
+					"",
+					time.Now().Add(time.Hour),
+				)
 				assert.Error(t, issueErr)
 			},
 		},
@@ -56,7 +64,15 @@ func TestTokenIssuerHelpers(t *testing.T) {
 				issuer, err := auth.NewTokenIssuer(cfg)
 				require.NoError(t, err)
 
-				_, issueErr := issuer.IssuePAT(uuid.New(), "ext-123", "user@example.com", "admin", []string{"models:read"}, "jti-1", time.Time{})
+				_, issueErr := issuer.IssuePAT(
+					uuid.New(),
+					"ext-123",
+					"user@example.com",
+					"admin",
+					[]string{"models:read"},
+					"jti-1",
+					time.Time{},
+				)
 				assert.Error(t, issueErr)
 			},
 		},

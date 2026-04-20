@@ -59,21 +59,6 @@ type workerEnvironment struct {
 	closers []func()
 }
 
-func (e *workerEnvironment) Close() {
-	for i := len(e.closers) - 1; i >= 0; i-- {
-		if e.closers[i] != nil {
-			e.closers[i]()
-		}
-	}
-}
-
-func (e *workerEnvironment) addCloser(fn func()) {
-	if fn == nil {
-		return
-	}
-	e.closers = append(e.closers, fn)
-}
-
 func NewWorkerEnvironment(ctx context.Context, cfg *config.WorkerConfig) (*workerEnvironment, error) {
 	pool, err := PrepareDatabase(ctx, cfg)
 	if err != nil {
@@ -110,6 +95,21 @@ func NewWorkerEnvironment(ctx context.Context, cfg *config.WorkerConfig) (*worke
 	env.mux = asynq.NewServeMux()
 	env.service = svc
 	return env, nil
+}
+
+func (e *workerEnvironment) Close() {
+	for i := len(e.closers) - 1; i >= 0; i-- {
+		if e.closers[i] != nil {
+			e.closers[i]()
+		}
+	}
+}
+
+func (e *workerEnvironment) addCloser(fn func()) {
+	if fn == nil {
+		return
+	}
+	e.closers = append(e.closers, fn)
 }
 
 func PrepareDatabase(ctx context.Context, cfg *config.WorkerConfig) (*pgxpool.Pool, error) {

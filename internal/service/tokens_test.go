@@ -115,7 +115,9 @@ func TestCreatePersonalAccessToken(t *testing.T) {
 			svc := service.New(repo, nil)
 
 			params := tc.params
-			if params.UserID == uuid.Nil && tc.name != "rejects missing user id" && tc.name != "surfaces repository failure for missing user" {
+			if params.UserID == uuid.Nil &&
+				tc.name != "rejects missing user id" &&
+				tc.name != "surfaces repository failure for missing user" {
 				params.UserID = user.ID
 			}
 
@@ -249,22 +251,42 @@ func TestValidatePAT(t *testing.T) {
 		wantCode int
 		check    func(*testing.T, *repository.Queries, repository.User)
 	}{
-		{name: "rejects missing claims", prepare: func(t *testing.T) (*service.Service, *repository.Queries, repository.User, *auth.Claims) {
-			repo := repository.New(testutil.MustOpenMigratedPostgres(t))
-			user := seedServiceUser(ctx, t, repo)
-			return service.New(repo, nil), repo, user, nil
-		}, wantCode: http.StatusUnauthorized},
-		{name: "rejects missing jti", prepare: func(t *testing.T) (*service.Service, *repository.Queries, repository.User, *auth.Claims) {
-			repo := repository.New(testutil.MustOpenMigratedPostgres(t))
-			user := seedServiceUser(ctx, t, repo)
-			return service.New(repo, nil), repo, user, &auth.Claims{}
-		}, wantCode: http.StatusUnauthorized},
+		{
+			name: "rejects missing claims",
+			prepare: func(t *testing.T) (
+				*service.Service,
+				*repository.Queries,
+				repository.User,
+				*auth.Claims,
+			) {
+				repo := repository.New(testutil.MustOpenMigratedPostgres(t))
+				user := seedServiceUser(ctx, t, repo)
+				return service.New(repo, nil), repo, user, nil
+			},
+			wantCode: http.StatusUnauthorized,
+		},
+		{
+			name: "rejects missing jti",
+			prepare: func(t *testing.T) (
+				*service.Service,
+				*repository.Queries,
+				repository.User,
+				*auth.Claims,
+			) {
+				repo := repository.New(testutil.MustOpenMigratedPostgres(t))
+				user := seedServiceUser(ctx, t, repo)
+				return service.New(repo, nil), repo, user, &auth.Claims{}
+			},
+			wantCode: http.StatusUnauthorized,
+		},
 		{
 			name: "rejects missing token record",
 			prepare: func(t *testing.T) (*service.Service, *repository.Queries, repository.User, *auth.Claims) {
 				repo := repository.New(testutil.MustOpenMigratedPostgres(t))
 				user := seedServiceUser(ctx, t, repo)
-				return service.New(repo, nil), repo, user, &auth.Claims{RegisteredClaims: jwtClaims(user.ID.String(), uuid.NewString())}
+				return service.New(repo, nil), repo, user, &auth.Claims{
+					RegisteredClaims: jwtClaims(user.ID.String(), uuid.NewString()),
+				}
 			},
 			wantCode: http.StatusUnauthorized,
 		},
@@ -273,8 +295,22 @@ func TestValidatePAT(t *testing.T) {
 			prepare: func(t *testing.T) (*service.Service, *repository.Queries, repository.User, *auth.Claims) {
 				repo := repository.New(testutil.MustOpenMigratedPostgres(t))
 				user := seedServiceUser(ctx, t, repo)
-				wrongType := mustCreateServiceTokenWithParams(ctx, t, repo, repository.CreateTokenParams{UserID: user.ID, Name: "session", Scopes: []string{"models:list"}, TokenType: auth.TokenTypeSession, Jti: uuid.NewString(), ExpiresAt: time.Now().Add(time.Hour)})
-				return service.New(repo, nil), repo, user, &auth.Claims{RegisteredClaims: jwtClaims(user.ID.String(), wrongType.Jti)}
+				wrongType := mustCreateServiceTokenWithParams(
+					ctx,
+					t,
+					repo,
+					repository.CreateTokenParams{
+						UserID:    user.ID,
+						Name:      "session",
+						Scopes:    []string{"models:list"},
+						TokenType: auth.TokenTypeSession,
+						Jti:       uuid.NewString(),
+						ExpiresAt: time.Now().Add(time.Hour),
+					},
+				)
+				return service.New(repo, nil), repo, user, &auth.Claims{
+					RegisteredClaims: jwtClaims(user.ID.String(), wrongType.Jti),
+				}
 			},
 			wantCode: http.StatusUnauthorized,
 		},
@@ -286,7 +322,9 @@ func TestValidatePAT(t *testing.T) {
 				revoked := mustCreateServiceToken(ctx, t, repo, user.ID, "revoked")
 				_, err := repo.RevokeToken(ctx, repository.RevokeTokenParams{ID: revoked.ID, UserID: user.ID})
 				require.NoError(t, err)
-				return service.New(repo, nil), repo, user, &auth.Claims{RegisteredClaims: jwtClaims(user.ID.String(), revoked.Jti)}
+				return service.New(repo, nil), repo, user, &auth.Claims{
+					RegisteredClaims: jwtClaims(user.ID.String(), revoked.Jti),
+				}
 			},
 			wantCode: http.StatusUnauthorized,
 		},
@@ -296,7 +334,9 @@ func TestValidatePAT(t *testing.T) {
 				repo := repository.New(testutil.MustOpenMigratedPostgres(t))
 				user := seedServiceUser(ctx, t, repo)
 				valid := mustCreateServiceToken(ctx, t, repo, user.ID, "valid")
-				return service.New(repo, nil), repo, user, &auth.Claims{RegisteredClaims: jwtClaims(uuid.NewString(), valid.Jti)}
+				return service.New(repo, nil), repo, user, &auth.Claims{
+					RegisteredClaims: jwtClaims(uuid.NewString(), valid.Jti),
+				}
 			},
 			wantCode: http.StatusUnauthorized,
 		},
@@ -305,8 +345,22 @@ func TestValidatePAT(t *testing.T) {
 			prepare: func(t *testing.T) (*service.Service, *repository.Queries, repository.User, *auth.Claims) {
 				repo := repository.New(testutil.MustOpenMigratedPostgres(t))
 				user := seedServiceUser(ctx, t, repo)
-				expired := mustCreateServiceTokenWithParams(ctx, t, repo, repository.CreateTokenParams{UserID: user.ID, Name: "expired", Scopes: []string{"models:list"}, TokenType: auth.TokenTypePAT, Jti: uuid.NewString(), ExpiresAt: time.Now().Add(-time.Hour)})
-				return service.New(repo, nil), repo, user, &auth.Claims{RegisteredClaims: jwtClaims(user.ID.String(), expired.Jti)}
+				expired := mustCreateServiceTokenWithParams(
+					ctx,
+					t,
+					repo,
+					repository.CreateTokenParams{
+						UserID:    user.ID,
+						Name:      "expired",
+						Scopes:    []string{"models:list"},
+						TokenType: auth.TokenTypePAT,
+						Jti:       uuid.NewString(),
+						ExpiresAt: time.Now().Add(-time.Hour),
+					},
+				)
+				return service.New(repo, nil), repo, user, &auth.Claims{
+					RegisteredClaims: jwtClaims(user.ID.String(), expired.Jti),
+				}
 			},
 			wantCode: http.StatusUnauthorized,
 		},
@@ -316,7 +370,9 @@ func TestValidatePAT(t *testing.T) {
 				repo := repository.New(testutil.MustOpenMigratedPostgres(t))
 				user := seedServiceUser(ctx, t, repo)
 				valid := mustCreateServiceToken(ctx, t, repo, user.ID, "valid")
-				return service.New(repo, nil), repo, user, &auth.Claims{RegisteredClaims: jwtClaims(user.ID.String(), valid.Jti)}
+				return service.New(repo, nil), repo, user, &auth.Claims{
+					RegisteredClaims: jwtClaims(user.ID.String(), valid.Jti),
+				}
 			},
 			check: func(t *testing.T, repo *repository.Queries, user repository.User) {
 				stored, getErr := repo.ListTokensByUser(ctx, user.ID)

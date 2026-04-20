@@ -24,19 +24,27 @@ func TestPrepareDatabase(t *testing.T) {
 		checkPool bool
 	}{
 		{
-			name:      "migrates and connects",
-			cfg:       &config.WorkerConfig{Database: config.DatabaseConfig{Postgres: mustWorkerPostgresConfig(t, dsn), MigrationsDir: testutil.MigrationsDir(t)}},
+			name: "migrates and connects",
+			cfg: &config.WorkerConfig{Database: config.DatabaseConfig{
+				Postgres:      mustWorkerPostgresConfig(t, dsn),
+				MigrationsDir: testutil.MigrationsDir(t),
+			}},
 			checkPool: true,
 		},
 		{
-			name:    "fails on missing migrations dir",
-			cfg:     &config.WorkerConfig{Database: config.DatabaseConfig{Postgres: mustWorkerPostgresConfig(t, dsn), MigrationsDir: filepath.Join(t.TempDir(), "missing")}},
+			name: "fails on missing migrations dir",
+			cfg: &config.WorkerConfig{Database: config.DatabaseConfig{
+				Postgres:      mustWorkerPostgresConfig(t, dsn),
+				MigrationsDir: filepath.Join(t.TempDir(), "missing"),
+			}},
 			wantErr: "migrate database",
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			pool, err := PrepareDatabase(ctx, tc.cfg)
 			if tc.wantErr != "" {
 				require.Error(t, err)
@@ -57,9 +65,12 @@ func TestNewWorkerEnvironment(t *testing.T) {
 	ctx, dsn := testutil.MustStartPostgres(t)
 	_, redisAddr := testutil.MustStartRedis(t)
 	baseCfg := config.WorkerConfig{
-		Database: config.DatabaseConfig{Postgres: mustWorkerPostgresConfig(t, dsn), MigrationsDir: testutil.MigrationsDir(t)},
-		Store:    config.RedisConfig{Addr: redisAddr},
-		Worker:   config.WorkerSettings{Concurrency: 2},
+		Database: config.DatabaseConfig{
+			Postgres:      mustWorkerPostgresConfig(t, dsn),
+			MigrationsDir: testutil.MigrationsDir(t),
+		},
+		Store:  config.RedisConfig{Addr: redisAddr},
+		Worker: config.WorkerSettings{Concurrency: 2},
 	}
 
 	tests := []struct {
@@ -79,6 +90,8 @@ func TestNewWorkerEnvironment(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			cfg := baseCfg
 			if tc.mutate != nil {
 				tc.mutate(&cfg)

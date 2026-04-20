@@ -27,12 +27,22 @@ func TestNewRedisClientOpt(t *testing.T) {
 		name string
 		cfg  config.RedisConfig
 	}{
-		{name: "maps all fields", cfg: config.RedisConfig{Addr: "redis:6379", Username: "user", Password: "secret", DB: 3}},
+		{
+			name: "maps all fields",
+			cfg: config.RedisConfig{
+				Addr:     "redis:6379",
+				Username: "user",
+				Password: "secret",
+				DB:       3,
+			},
+		},
 		{name: "supports zero values", cfg: config.RedisConfig{}},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			opt := NewRedisClientOpt(tc.cfg)
 			require.NotNil(t, opt)
 			assert.Equal(t, tc.cfg.Addr, opt.Addr)
@@ -52,19 +62,32 @@ func TestRegisterBackendPingSchedule(t *testing.T) {
 		wantErr string
 	}{
 		{name: "registers sync task"},
-		{name: "surfaces register error", err: errors.New("boom"), wantErr: "register schedule: boom"},
+		{
+			name:    "surfaces register error",
+			err:     errors.New("boom"),
+			wantErr: "register schedule: boom",
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			called := false
-			err := RegisterBackendPingSchedule(fakeScheduler{registerFn: func(spec string, task *asynq.Task, _ ...asynq.Option) (string, error) {
-				called = true
-				assert.Equal(t, "@every 5m", spec)
-				require.NotNil(t, task)
-				assert.Equal(t, workers.TypeSyncBackends, task.Type())
-				return "entry-id", tc.err
-			}}, "@every 5m")
+			err := RegisterBackendPingSchedule(
+				fakeScheduler{registerFn: func(
+					spec string,
+					task *asynq.Task,
+					_ ...asynq.Option,
+				) (string, error) {
+					called = true
+					assert.Equal(t, "@every 5m", spec)
+					require.NotNil(t, task)
+					assert.Equal(t, workers.TypeSyncBackends, task.Type())
+					return "entry-id", tc.err
+				}},
+				"@every 5m",
+			)
 
 			assert.True(t, called)
 			if tc.wantErr != "" {

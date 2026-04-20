@@ -61,7 +61,6 @@ func TestExtractParams(t *testing.T) {
 
 	output := buf.String()
 	for _, want := range []string{"status=201", "method=GET", "path=/api/models/llama3", "route=\"GET /api/models/{modelID}\"", "backend_id=backend-1"} {
-		want := want
 		t.Run("log contains "+want, func(t *testing.T) {
 			t.Parallel()
 			require.NotEmpty(t, output)

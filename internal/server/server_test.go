@@ -52,6 +52,8 @@ roles:
 }
 
 func TestNewTestServerDefaults(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name   string
 		cfg    *config.ServerConfig

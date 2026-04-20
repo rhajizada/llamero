@@ -25,19 +25,27 @@ func TestSetupDatabase(t *testing.T) {
 		checkPool bool
 	}{
 		{
-			name:      "migrates and connects",
-			cfg:       &config.ServerConfig{Database: config.DatabaseConfig{Postgres: mustPostgresConfig(t, dsn), MigrationsDir: testutil.MigrationsDir(t)}},
+			name: "migrates and connects",
+			cfg: &config.ServerConfig{Database: config.DatabaseConfig{
+				Postgres:      mustPostgresConfig(t, dsn),
+				MigrationsDir: testutil.MigrationsDir(t),
+			}},
 			checkPool: true,
 		},
 		{
-			name:    "fails on missing migrations dir",
-			cfg:     &config.ServerConfig{Database: config.DatabaseConfig{Postgres: mustPostgresConfig(t, dsn), MigrationsDir: filepath.Join(t.TempDir(), "missing")}},
+			name: "fails on missing migrations dir",
+			cfg: &config.ServerConfig{Database: config.DatabaseConfig{
+				Postgres:      mustPostgresConfig(t, dsn),
+				MigrationsDir: filepath.Join(t.TempDir(), "missing"),
+			}},
 			wantErr: "migrate database",
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			pool, err := SetupDatabase(ctx, tc.cfg)
 			if tc.wantErr != "" {
 				require.Error(t, err)

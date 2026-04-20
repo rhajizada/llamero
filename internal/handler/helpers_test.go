@@ -63,10 +63,14 @@ func TestHandlerHelpers(t *testing.T) {
 		{
 			name: "reads proxy payload",
 			run: func(t *testing.T) {
-				req := httptest.NewRequest(http.MethodPost, "/api/chat/completions", bytes.NewReader([]byte(`{"model":"llama"}`)))
+				req := httptest.NewRequest(
+					http.MethodPost,
+					"/api/chat/completions",
+					bytes.NewReader([]byte(`{"model":"llama"}`)),
+				)
 				body, err := h.ReadProxyPayload(req)
 				require.NoError(t, err)
-				assert.Equal(t, `{"model":"llama"}`, string(body))
+				assert.JSONEq(t, `{"model":"llama"}`, string(body))
 			},
 		},
 		{
@@ -94,7 +98,10 @@ func TestHandlerHelpers(t *testing.T) {
 		{
 			name: "resolves role from oauth groups",
 			run: func(t *testing.T) {
-				role, scopes, err := oauthHandler.DetermineRole(&oauthclient.UserInfo{Subject: "sub-1", Groups: []string{"admins", "admins"}})
+				role, scopes, err := oauthHandler.DetermineRole(&oauthclient.UserInfo{
+					Subject: "sub-1",
+					Groups:  []string{"admins", "admins"},
+				})
 				require.NoError(t, err)
 				assert.Equal(t, "admin", role)
 				assert.Equal(t, []string{"models:write", "models:read"}, scopes)
@@ -103,7 +110,10 @@ func TestHandlerHelpers(t *testing.T) {
 		{
 			name: "rejects unauthorized oauth groups",
 			run: func(t *testing.T) {
-				_, _, err := oauthHandler.DetermineRole(&oauthclient.UserInfo{Subject: "sub-2", Groups: []string{"unknown"}})
+				_, _, err := oauthHandler.DetermineRole(&oauthclient.UserInfo{
+					Subject: "sub-2",
+					Groups:  []string{"unknown"},
+				})
 				assert.Error(t, err)
 			},
 		},

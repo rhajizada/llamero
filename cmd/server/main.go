@@ -67,21 +67,6 @@ type serverEnvironment struct {
 	closers []func()
 }
 
-func (e *serverEnvironment) Close() {
-	for i := len(e.closers) - 1; i >= 0; i-- {
-		if e.closers[i] != nil {
-			e.closers[i]()
-		}
-	}
-}
-
-func (e *serverEnvironment) addCloser(fn func()) {
-	if fn == nil {
-		return
-	}
-	e.closers = append(e.closers, fn)
-}
-
 func NewServerEnvironment(
 	ctx context.Context,
 	cfg *config.ServerConfig,
@@ -140,6 +125,21 @@ func NewServerEnvironment(
 	env.service = svc
 	env.server = srv
 	return env, nil
+}
+
+func (e *serverEnvironment) Close() {
+	for i := len(e.closers) - 1; i >= 0; i-- {
+		if e.closers[i] != nil {
+			e.closers[i]()
+		}
+	}
+}
+
+func (e *serverEnvironment) addCloser(fn func()) {
+	if fn == nil {
+		return
+	}
+	e.closers = append(e.closers, fn)
 }
 
 func SetupDatabase(ctx context.Context, cfg *config.ServerConfig) (*pgxpool.Pool, error) {

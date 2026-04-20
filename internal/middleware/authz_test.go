@@ -40,8 +40,12 @@ func TestAuthzHelpers(t *testing.T) {
 			name: "skips validation for session tokens",
 			run: func(t *testing.T) {
 				validator := &stubPATValidator{}
-				err := middleware.ValidatePAT(context.Background(), &auth.Claims{Type: auth.TokenTypeSession}, validator)
-				assert.NoError(t, err)
+				err := middleware.ValidatePAT(
+					context.Background(),
+					&auth.Claims{Type: auth.TokenTypeSession},
+					validator,
+				)
+				require.NoError(t, err)
 				assert.False(t, validator.called)
 			},
 		},
@@ -57,7 +61,7 @@ func TestAuthzHelpers(t *testing.T) {
 			run: func(t *testing.T) {
 				validator := &stubPATValidator{err: errors.New("revoked")}
 				err := middleware.ValidatePAT(context.Background(), &auth.Claims{Type: auth.TokenTypePAT}, validator)
-				assert.EqualError(t, err, "revoked")
+				require.EqualError(t, err, "revoked")
 				assert.True(t, validator.called)
 			},
 		},
@@ -82,7 +86,11 @@ func TestAuthzHelpers(t *testing.T) {
 		{
 			name: "deduplicates trimmed scopes",
 			run: func(t *testing.T) {
-				assert.Equal(t, []string{"read", "write"}, xslices.UniqueTrimmedStrings([]string{" read ", "write", "read", ""}))
+				assert.Equal(
+					t,
+					[]string{"read", "write"},
+					xslices.UniqueTrimmedStrings([]string{" read ", "write", "read", ""}),
+				)
 			},
 		},
 	}
@@ -117,7 +125,10 @@ func TestRequireWithSessionToken(t *testing.T) {
 	a := middleware.NewAuthz(verifier, nil)
 	h := a.Require(" models:list ", "models:list")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := middleware.ClaimsFromContext(r.Context())
-		require.True(t, ok)
+		if !assert.True(t, ok) {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 		assert.Equal(t, "user@example.com", claims.Email)
 		w.WriteHeader(http.StatusNoContent)
 	}))
@@ -165,7 +176,10 @@ func TestRequireRejectsMissingScopeAndInvalidPAT(t *testing.T) {
 
 	a = middleware.NewAuthz(
 		verifier,
-		stubPATValidatorHTTP{err: &service.Error{Code: http.StatusUnauthorized, Message: "revoked token"}},
+		stubPATValidatorHTTP{err: &service.Error{
+			Code:    http.StatusUnauthorized,
+			Message: "revoked token",
+		}},
 	)
 	h = a.Require("models:list")(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
