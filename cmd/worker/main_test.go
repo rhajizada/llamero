@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/url"
 	"path/filepath"
 	"strconv"
@@ -16,27 +17,30 @@ import (
 func TestPrepareDatabase(t *testing.T) {
 	t.Parallel()
 
-	ctx, dsn := testutil.MustStartPostgres(t)
 	tests := []struct {
-		name      string
-		cfg       *config.WorkerConfig
-		wantErr   string
-		checkPool bool
+		name    string
+		setup   func(*testing.T) (context.Context, *config.WorkerConfig)
+		wantErr string
 	}{
 		{
 			name: "migrates and connects",
-			cfg: &config.WorkerConfig{Database: config.DatabaseConfig{
-				Postgres:      mustWorkerPostgresConfig(t, dsn),
-				MigrationsDir: testutil.MigrationsDir(t),
-			}},
-			checkPool: true,
+			setup: func(t *testing.T) (context.Context, *config.WorkerConfig) {
+				ctx, dsn := testutil.MustStartPostgres(t)
+				return ctx, &config.WorkerConfig{Database: config.DatabaseConfig{
+					Postgres:      mustWorkerPostgresConfig(t, dsn),
+					MigrationsDir: testutil.MigrationsDir(t),
+				}}
+			},
 		},
 		{
 			name: "fails on missing migrations dir",
-			cfg: &config.WorkerConfig{Database: config.DatabaseConfig{
-				Postgres:      mustWorkerPostgresConfig(t, dsn),
-				MigrationsDir: filepath.Join(t.TempDir(), "missing"),
-			}},
+			setup: func(t *testing.T) (context.Context, *config.WorkerConfig) {
+				ctx, dsn := testutil.MustStartPostgres(t)
+				return ctx, &config.WorkerConfig{Database: config.DatabaseConfig{
+					Postgres:      mustWorkerPostgresConfig(t, dsn),
+					MigrationsDir: filepath.Join(t.TempDir(), "missing"),
+				}}
+			},
 			wantErr: "migrate database",
 		},
 	}
@@ -45,7 +49,8 @@ func TestPrepareDatabase(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			pool, err := PrepareDatabase(ctx, tc.cfg)
+			ctx, cfg := tc.setup(t)
+			pool, err := PrepareDatabase(ctx, cfg)
 			if tc.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.wantErr)
@@ -62,27 +67,38 @@ func TestPrepareDatabase(t *testing.T) {
 func TestNewWorkerEnvironment(t *testing.T) {
 	t.Parallel()
 
-	ctx, dsn := testutil.MustStartPostgres(t)
-	_, redisAddr := testutil.MustStartRedis(t)
-	baseCfg := config.WorkerConfig{
-		Database: config.DatabaseConfig{
-			Postgres:      mustWorkerPostgresConfig(t, dsn),
-			MigrationsDir: testutil.MigrationsDir(t),
-		},
-		Store:  config.RedisConfig{Addr: redisAddr},
-		Worker: config.WorkerSettings{Concurrency: 2},
-	}
-
 	tests := []struct {
 		name    string
-		mutate  func(*config.WorkerConfig)
+		setup   func(*testing.T) (context.Context, *config.WorkerConfig)
 		wantErr string
 	}{
-		{name: "builds environment"},
+		{
+			name: "builds environment",
+			setup: func(t *testing.T) (context.Context, *config.WorkerConfig) {
+				ctx, dsn := testutil.MustStartPostgres(t)
+				_, redisAddr := testutil.MustStartRedis(t)
+				return ctx, &config.WorkerConfig{
+					Database: config.DatabaseConfig{
+						Postgres:      mustWorkerPostgresConfig(t, dsn),
+						MigrationsDir: testutil.MigrationsDir(t),
+					},
+					Store:  config.RedisConfig{Addr: redisAddr},
+					Worker: config.WorkerSettings{Concurrency: 2},
+				}
+			},
+		},
 		{
 			name: "fails on invalid redis address",
-			mutate: func(cfg *config.WorkerConfig) {
-				cfg.Store.Addr = "127.0.0.1:0"
+			setup: func(t *testing.T) (context.Context, *config.WorkerConfig) {
+				ctx, dsn := testutil.MustStartPostgres(t)
+				return ctx, &config.WorkerConfig{
+					Database: config.DatabaseConfig{
+						Postgres:      mustWorkerPostgresConfig(t, dsn),
+						MigrationsDir: testutil.MigrationsDir(t),
+					},
+					Store:  config.RedisConfig{Addr: "127.0.0.1:0"},
+					Worker: config.WorkerSettings{Concurrency: 2},
+				}
 			},
 			wantErr: "connect redis",
 		},
@@ -92,12 +108,8 @@ func TestNewWorkerEnvironment(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			cfg := baseCfg
-			if tc.mutate != nil {
-				tc.mutate(&cfg)
-			}
-
-			env, err := NewWorkerEnvironment(ctx, &cfg)
+			ctx, cfg := tc.setup(t)
+			env, err := NewWorkerEnvironment(ctx, cfg)
 			if tc.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.wantErr)

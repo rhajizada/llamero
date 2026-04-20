@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"net/url"
 	"path/filepath"
@@ -17,27 +18,32 @@ import (
 func TestSetupDatabase(t *testing.T) {
 	t.Parallel()
 
-	ctx, dsn := testutil.MustStartPostgres(t)
 	tests := []struct {
 		name      string
-		cfg       *config.ServerConfig
+		setup     func(*testing.T) (context.Context, *config.ServerConfig)
 		wantErr   string
 		checkPool bool
 	}{
 		{
 			name: "migrates and connects",
-			cfg: &config.ServerConfig{Database: config.DatabaseConfig{
-				Postgres:      mustPostgresConfig(t, dsn),
-				MigrationsDir: testutil.MigrationsDir(t),
-			}},
+			setup: func(t *testing.T) (context.Context, *config.ServerConfig) {
+				ctx, dsn := testutil.MustStartPostgres(t)
+				return ctx, &config.ServerConfig{Database: config.DatabaseConfig{
+					Postgres:      mustPostgresConfig(t, dsn),
+					MigrationsDir: testutil.MigrationsDir(t),
+				}}
+			},
 			checkPool: true,
 		},
 		{
 			name: "fails on missing migrations dir",
-			cfg: &config.ServerConfig{Database: config.DatabaseConfig{
-				Postgres:      mustPostgresConfig(t, dsn),
-				MigrationsDir: filepath.Join(t.TempDir(), "missing"),
-			}},
+			setup: func(t *testing.T) (context.Context, *config.ServerConfig) {
+				ctx, dsn := testutil.MustStartPostgres(t)
+				return ctx, &config.ServerConfig{Database: config.DatabaseConfig{
+					Postgres:      mustPostgresConfig(t, dsn),
+					MigrationsDir: filepath.Join(t.TempDir(), "missing"),
+				}}
+			},
 			wantErr: "migrate database",
 		},
 	}
@@ -46,7 +52,8 @@ func TestSetupDatabase(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			pool, err := SetupDatabase(ctx, tc.cfg)
+			ctx, cfg := tc.setup(t)
+			pool, err := SetupDatabase(ctx, cfg)
 			if tc.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.wantErr)
