@@ -4,48 +4,54 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/rhajizada/llamero/internal/workers"
 )
 
-func TestNewSyncBackendsTask(t *testing.T) {
+func TestTaskFactories(t *testing.T) {
 	t.Parallel()
 
-	task, err := workers.NewSyncBackendsTask()
-	if err != nil {
-		t.Fatalf("NewSyncBackendsTask returned error: %v", err)
-	}
-	if task.Type() != workers.TypeSyncBackends {
-		t.Fatalf("unexpected task type: %s", task.Type())
-	}
-	if len(task.Payload()) != 0 {
-		t.Fatalf("expected empty payload, got %q", string(task.Payload()))
-	}
-}
+	tests := []struct {
+		name    string
+		run     func(*testing.T)
+		wantErr bool
+	}{
+		{
+			name: "creates sync backends task",
+			run: func(t *testing.T) {
+				task, err := workers.NewSyncBackendsTask()
+				require.NoError(t, err)
+				assert.Equal(t, workers.TypeSyncBackends, task.Type())
+				assert.Empty(t, task.Payload())
+			},
+		},
+		{
+			name: "creates sync backend by id task",
+			run: func(t *testing.T) {
+				task, err := workers.NewSyncBackendByIDTask(" backend-1 ")
+				require.NoError(t, err)
+				assert.Equal(t, workers.TypeSyncBackendByID, task.Type())
 
-func TestNewSyncBackendByIDTask(t *testing.T) {
-	t.Parallel()
-
-	task, err := workers.NewSyncBackendByIDTask(" backend-1 ")
-	if err != nil {
-		t.Fatalf("NewSyncBackendByIDTask returned error: %v", err)
+				var payload workers.SyncBackendPayload
+				require.NoError(t, json.Unmarshal(task.Payload(), &payload))
+				assert.Equal(t, "backend-1", payload.BackendID)
+			},
+		},
+		{
+			name: "rejects empty backend id",
+			run: func(t *testing.T) {
+				_, err := workers.NewSyncBackendByIDTask("   ")
+				assert.Error(t, err)
+			},
+		},
 	}
-	if task.Type() != workers.TypeSyncBackendByID {
-		t.Fatalf("unexpected task type: %s", task.Type())
-	}
 
-	var payload workers.SyncBackendPayload
-	if unmarshalErr := json.Unmarshal(task.Payload(), &payload); unmarshalErr != nil {
-		t.Fatalf("unmarshal payload: %v", unmarshalErr)
-	}
-	if payload.BackendID != "backend-1" {
-		t.Fatalf("unexpected backend id: %s", payload.BackendID)
-	}
-}
-
-func TestNewSyncBackendByIDTaskRejectsEmptyID(t *testing.T) {
-	t.Parallel()
-
-	if _, err := workers.NewSyncBackendByIDTask("   "); err == nil {
-		t.Fatal("expected empty backend id to fail")
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tc.run(t)
+		})
 	}
 }

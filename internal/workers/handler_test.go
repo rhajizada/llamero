@@ -3,10 +3,11 @@ package workers_test
 import (
 	"context"
 	"errors"
-	"strings"
 	"testing"
 
 	"github.com/hibiken/asynq"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/rhajizada/llamero/internal/workers"
 )
@@ -24,74 +25,92 @@ func (f *fakeSyncService) SyncBackendByID(ctx context.Context, backendID string)
 	return f.syncBackendByIDFn(ctx, backendID)
 }
 
-func TestNewHandlerAndHandleSyncBackends(t *testing.T) {
+func TestWorkerHandler(t *testing.T) {
 	t.Parallel()
 
-	called := false
-	h := workers.NewHandler(&fakeSyncService{
-		syncBackendsFn: func(context.Context) error {
-			called = true
-			return nil
+	tests := []struct {
+		name string
+		run  func(*testing.T)
+	}{
+		{
+			name: "handles sync backends task",
+			run: func(t *testing.T) {
+				called := false
+				h := workers.NewHandler(&fakeSyncService{
+					syncBackendsFn: func(context.Context) error {
+						called = true
+						return nil
+					},
+					syncBackendByIDFn: func(context.Context, string) error { return nil },
+				})
+
+				require.NoError(t, h.HandleSyncBackends(context.Background(), asynq.NewTask(workers.TypeSyncBackends, nil)))
+				assert.True(t, called)
+			},
 		},
-		syncBackendByIDFn: func(context.Context, string) error { return nil },
-	})
+		{
+			name: "handles sync backend by id task",
+			run: func(t *testing.T) {
+				calledWith := ""
+				h := workers.NewHandler(&fakeSyncService{
+					syncBackendsFn: func(context.Context) error { return nil },
+					syncBackendByIDFn: func(_ context.Context, backendID string) error {
+						calledWith = backendID
+						return nil
+					},
+				})
+				task, err := workers.NewSyncBackendByIDTask(" backend-a ")
+				require.NoError(t, err)
 
-	if err := h.HandleSyncBackends(context.Background(), asynq.NewTask(workers.TypeSyncBackends, nil)); err != nil {
-		t.Fatalf("HandleSyncBackends returned error: %v", err)
-	}
-	if !called {
-		t.Fatal("expected SyncBackends to be called")
-	}
-}
-
-func TestHandleSyncBackendByID(t *testing.T) {
-	t.Parallel()
-
-	calledWith := ""
-	h := workers.NewHandler(&fakeSyncService{
-		syncBackendsFn: func(context.Context) error { return nil },
-		syncBackendByIDFn: func(_ context.Context, backendID string) error {
-			calledWith = backendID
-			return nil
+				require.NoError(t, h.HandleSyncBackendByID(context.Background(), task))
+				assert.Equal(t, "backend-a", calledWith)
+			},
 		},
-	})
-	task, err := workers.NewSyncBackendByIDTask(" backend-a ")
-	if err != nil {
-		t.Fatalf("NewSyncBackendByIDTask returned error: %v", err)
+		{
+			name: "returns decode payload error",
+			run: func(t *testing.T) {
+				h := workers.NewHandler(&fakeSyncService{
+					syncBackendsFn:    func(context.Context) error { return nil },
+					syncBackendByIDFn: func(context.Context, string) error { return errors.New("sync failed") },
+				})
+
+				err := h.HandleSyncBackendByID(context.Background(), asynq.NewTask(workers.TypeSyncBackendByID, []byte("{")))
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "decode payload")
+			},
+		},
+		{
+			name: "returns backend id validation error",
+			run: func(t *testing.T) {
+				h := workers.NewHandler(&fakeSyncService{
+					syncBackendsFn:    func(context.Context) error { return nil },
+					syncBackendByIDFn: func(context.Context, string) error { return errors.New("sync failed") },
+				})
+
+				err := h.HandleSyncBackendByID(context.Background(), asynq.NewTask(workers.TypeSyncBackendByID, []byte(`{"backend_id":"   "}`)))
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "backend id is required")
+			},
+		},
+		{
+			name: "returns sync service error",
+			run: func(t *testing.T) {
+				h := workers.NewHandler(&fakeSyncService{
+					syncBackendsFn:    func(context.Context) error { return nil },
+					syncBackendByIDFn: func(context.Context, string) error { return errors.New("sync failed") },
+				})
+
+				err := h.HandleSyncBackendByID(context.Background(), asynq.NewTask(workers.TypeSyncBackendByID, []byte(`{"backend_id":"backend-a"}`)))
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "sync failed")
+			},
+		},
 	}
 
-	if handleErr := h.HandleSyncBackendByID(context.Background(), task); handleErr != nil {
-		t.Fatalf("HandleSyncBackendByID returned error: %v", handleErr)
-	}
-	if calledWith != "backend-a" {
-		t.Fatalf("unexpected backend id: %q", calledWith)
-	}
-}
-
-func TestHandleSyncBackendByIDErrors(t *testing.T) {
-	t.Parallel()
-
-	h := workers.NewHandler(&fakeSyncService{
-		syncBackendsFn:    func(context.Context) error { return nil },
-		syncBackendByIDFn: func(context.Context, string) error { return errors.New("sync failed") },
-	})
-
-	if handleErr := h.HandleSyncBackendByID(
-		context.Background(),
-		asynq.NewTask(workers.TypeSyncBackendByID, []byte("{")),
-	); handleErr == nil || !strings.Contains(handleErr.Error(), "decode payload") {
-		t.Fatalf("expected decode payload error, got %v", handleErr)
-	}
-
-	task := asynq.NewTask(workers.TypeSyncBackendByID, []byte(`{"backend_id":"   "}`))
-	if handleErr := h.HandleSyncBackendByID(context.Background(), task); handleErr == nil ||
-		!strings.Contains(handleErr.Error(), "backend id is required") {
-		t.Fatalf("expected backend id error, got %v", handleErr)
-	}
-
-	task = asynq.NewTask(workers.TypeSyncBackendByID, []byte(`{"backend_id":"backend-a"}`))
-	if handleErr := h.HandleSyncBackendByID(context.Background(), task); handleErr == nil ||
-		!strings.Contains(handleErr.Error(), "sync failed") {
-		t.Fatalf("expected sync error, got %v", handleErr)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tc.run(t)
+		})
 	}
 }

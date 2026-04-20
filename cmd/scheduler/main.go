@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 
@@ -11,37 +12,50 @@ import (
 	"github.com/rhajizada/llamero/internal/workers"
 )
 
+type schedulerRegistrar interface {
+	Register(spec string, task *asynq.Task, opts ...asynq.Option) (string, error)
+}
+
 func main() {
 	logger := logging.New()
 	slog.SetDefault(logger)
 
+	if err := Run(logger); err != nil {
+		logger.Error("scheduler failed", "err", err)
+		os.Exit(1)
+	}
+}
+
+func Run(logger *slog.Logger) error {
 	cfg, err := config.LoadScheduler()
 	if err != nil {
-		logger.Error("load config", "err", err)
-		os.Exit(1)
+		return fmt.Errorf("load config: %w", err)
 	}
 
-	connOpt := &asynq.RedisClientOpt{
-		Addr:     cfg.Store.Addr,
-		Username: cfg.Store.Username,
-		Password: cfg.Store.Password,
-		DB:       cfg.Store.DB,
+	scheduler := asynq.NewScheduler(NewRedisClientOpt(cfg.Store), nil)
+	if err := RegisterBackendPingSchedule(scheduler, cfg.Scheduler.BackendPingSpec); err != nil {
+		return err
 	}
 
-	scheduler := asynq.NewScheduler(connOpt, nil)
+	return scheduler.Run()
+}
+
+func NewRedisClientOpt(cfg config.RedisConfig) *asynq.RedisClientOpt {
+	return &asynq.RedisClientOpt{
+		Addr:     cfg.Addr,
+		Username: cfg.Username,
+		Password: cfg.Password,
+		DB:       cfg.DB,
+	}
+}
+
+func RegisterBackendPingSchedule(scheduler schedulerRegistrar, spec string) error {
 	task, err := workers.NewSyncBackendsTask()
 	if err != nil {
-		logger.Error("create task", "err", err)
-		os.Exit(1)
+		return fmt.Errorf("create task: %w", err)
 	}
-
-	if _, regErr := scheduler.Register(cfg.Scheduler.BackendPingSpec, task); regErr != nil {
-		logger.Error("register schedule", "err", regErr)
-		os.Exit(1)
+	if _, err := scheduler.Register(spec, task); err != nil {
+		return fmt.Errorf("register schedule: %w", err)
 	}
-
-	if runErr := scheduler.Run(); runErr != nil {
-		logger.Error("scheduler stopped", "err", runErr)
-		os.Exit(1)
-	}
+	return nil
 }

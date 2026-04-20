@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alicebob/miniredis/v2"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -443,8 +442,6 @@ func TestFetchInstalledModelsAndRouteResponsesCreate(t *testing.T) {
 
 func TestUserServiceUsesDatabase(t *testing.T) {
 	ctx := context.Background()
-	repo := repository.New(testutil.MustOpenMigratedPostgres(t))
-	svc := service.New(repo, nil)
 	now := time.Now().UTC().Truncate(time.Second)
 	updatedAt := now.Add(5 * time.Minute)
 	displayName := "Initial User"
@@ -455,6 +452,8 @@ func TestUserServiceUsesDatabase(t *testing.T) {
 		run  func(*testing.T)
 	}{
 		{name: "upserts and fetches user", run: func(t *testing.T) {
+			repo := repository.New(testutil.MustOpenMigratedPostgres(t))
+			svc := service.New(repo, nil)
 			provider := "oidc-" + uuid.NewString()
 			sub := "sub-" + uuid.NewString()
 
@@ -479,6 +478,8 @@ func TestUserServiceUsesDatabase(t *testing.T) {
 			assert.Equal(t, created.Email, fetched.Email)
 		}},
 		{name: "upsert updates existing user", run: func(t *testing.T) {
+			repo := repository.New(testutil.MustOpenMigratedPostgres(t))
+			svc := service.New(repo, nil)
 			provider := "oidc-" + uuid.NewString()
 			sub := "sub-" + uuid.NewString()
 			email := uuid.NewString() + "@example.com"
@@ -518,6 +519,8 @@ func TestUserServiceUsesDatabase(t *testing.T) {
 			assert.Equal(t, updatedName, *updated.DisplayName)
 		}},
 		{name: "returns not found for missing user", run: func(t *testing.T) {
+			repo := repository.New(testutil.MustOpenMigratedPostgres(t))
+			svc := service.New(repo, nil)
 			_, err := svc.GetUser(ctx, uuid.New())
 			assertServiceError(t, err, http.StatusNotFound)
 		}},
@@ -562,8 +565,5 @@ func assertServiceError(t *testing.T, err error, code int) {
 func newTestRedisStore(t *testing.T) *redisstore.Store {
 	t.Helper()
 
-	mr := miniredis.RunT(t)
-	store, err := redisstore.New(&config.RedisConfig{Addr: mr.Addr()})
-	require.NoError(t, err)
-	return store
+	return testutil.MustOpenRedisStore(t)
 }

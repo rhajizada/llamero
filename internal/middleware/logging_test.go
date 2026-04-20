@@ -5,8 +5,10 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/rhajizada/llamero/internal/middleware"
 	"github.com/rhajizada/llamero/internal/requestctx"
@@ -17,17 +19,32 @@ func TestExtractParams(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/api/models/llama3", nil)
 	req.SetPathValue("modelID", "llama3")
-	params := middleware.ExtractParams("GET /api/models/{modelID}", req)
-	if params["modelID"] != "llama3" {
-		t.Fatalf("unexpected params: %#v", params)
+	tests := []struct {
+		name    string
+		pattern string
+		want    map[string]string
+		wantNil bool
+	}{
+		{
+			name:    "extracts route params",
+			pattern: "GET /api/models/{modelID}",
+			want:    map[string]string{"modelID": "llama3"},
+		},
+		{name: "returns nil for empty pattern", pattern: "", wantNil: true},
 	}
-	if got := middleware.ExtractParams("", req); got != nil {
-		t.Fatalf("expected nil params for empty pattern, got %#v", got)
-	}
-}
 
-func TestLoggingMiddlewareAndWrappedWriter(t *testing.T) {
-	t.Parallel()
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			params := middleware.ExtractParams(tc.pattern, req)
+			if tc.wantNil {
+				assert.Nil(t, params)
+				return
+			}
+			assert.Equal(t, tc.want, params)
+		})
+	}
 
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&buf, nil))
@@ -40,16 +57,15 @@ func TestLoggingMiddlewareAndWrappedWriter(t *testing.T) {
 		w.WriteHeader(http.StatusCreated)
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/api/models/llama3", nil)
-	h.ServeHTTP(httptest.NewRecorder(), req)
+	h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/api/models/llama3", nil))
 
 	output := buf.String()
 	for _, want := range []string{"status=201", "method=GET", "path=/api/models/llama3", "route=\"GET /api/models/{modelID}\"", "backend_id=backend-1"} {
-		t.Run(want, func(t *testing.T) {
+		want := want
+		t.Run("log contains "+want, func(t *testing.T) {
 			t.Parallel()
-			if !strings.Contains(output, want) {
-				t.Fatalf("expected log output to contain %q, got %s", want, output)
-			}
+			require.NotEmpty(t, output)
+			assert.Contains(t, output, want)
 		})
 	}
 }

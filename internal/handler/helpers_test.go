@@ -2,15 +2,16 @@ package handler_test
 
 import (
 	"bytes"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/rhajizada/llamero/internal/config"
 	"github.com/rhajizada/llamero/internal/handler"
@@ -18,61 +19,12 @@ import (
 	"github.com/rhajizada/llamero/internal/roles"
 )
 
-func TestParseOAuthCallbackForm(t *testing.T) {
-	t.Parallel()
-
-	body := strings.Repeat("a", int(64<<10)+1)
-	req := httptest.NewRequest(http.MethodPost, "/callback", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	err := handler.ParseOAuthCallbackForm(httptest.NewRecorder(), req)
-	var maxErr *http.MaxBytesError
-	if !errors.As(err, &maxErr) {
-		t.Fatalf("expected MaxBytesError, got %v", err)
-	}
-
-	req = httptest.NewRequest(http.MethodPost, "/callback", strings.NewReader("code=abc"))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	if parseErr := handler.ParseOAuthCallbackForm(httptest.NewRecorder(), req); parseErr != nil {
-		t.Fatalf("unexpected parse error: %v", parseErr)
-	}
-	if got := req.Form.Get("code"); got != "abc" {
-		t.Fatalf("unexpected parsed code: %s", got)
-	}
-}
-
-func TestReadProxyPayloadAndWriteProxyReadError(t *testing.T) {
+func TestHandlerHelpers(t *testing.T) {
 	t.Parallel()
 
 	h := &handler.Handler{}
-	req := httptest.NewRequest(http.MethodPost, "/api/chat/completions", bytes.NewReader([]byte(`{"model":"llama"}`)))
-	body, err := h.ReadProxyPayload(req)
-	if err != nil {
-		t.Fatalf("unexpected read error: %v", err)
-	}
-	if string(body) != `{"model":"llama"}` {
-		t.Fatalf("unexpected body: %s", string(body))
-	}
-
-	tooLarge := bytes.Repeat([]byte("a"), int(5<<20)+1)
-	req = httptest.NewRequest(http.MethodPost, "/api/chat/completions", bytes.NewReader(tooLarge))
-	_, err = h.ReadProxyPayload(req)
-	if err == nil {
-		t.Fatal("expected oversized body error")
-	}
-
-	rec := httptest.NewRecorder()
-	h.WriteProxyReadError(rec, err)
-	if rec.Code != http.StatusRequestEntityTooLarge {
-		t.Fatalf("unexpected status: %d", rec.Code)
-	}
-}
-
-func TestOAuthHelpers(t *testing.T) {
-	t.Parallel()
-
 	roleStore := loadTestRoles(t)
-	h := handler.NewTestHandler(&config.ServerConfig{
+	oauthHandler := handler.NewTestHandler(&config.ServerConfig{
 		ExternalURL: "https://llamero.example.com/",
 		OAuth: config.OAuthConfig{
 			AuthorizeURL: "https://issuer.example.com/authorize",
@@ -80,32 +32,88 @@ func TestOAuthHelpers(t *testing.T) {
 			RedirectURL:  "https://llamero.example.com/callback",
 			Scopes:       []string{"openid", "email"},
 		},
-		JWT: config.JWTConfig{
-			Audience: "api-audience",
-			TTL:      2 * time.Hour,
-		},
+		JWT: config.JWTConfig{Audience: "api-audience", TTL: 2 * time.Hour},
 	}, roleStore)
 
-	redirect := h.LoginRedirectURL("token-123")
-	if !strings.HasPrefix(redirect, "https://llamero.example.com/login#") {
-		t.Fatalf("unexpected redirect URL: %s", redirect)
-	}
-	if !strings.Contains(redirect, "token=token-123") || !strings.Contains(redirect, "expires_in=7200") {
-		t.Fatalf("unexpected redirect query fragment: %s", redirect)
+	tests := []struct {
+		name string
+		run  func(*testing.T)
+	}{
+		{
+			name: "rejects oversized oauth callback form",
+			run: func(t *testing.T) {
+				body := strings.Repeat("a", int(64<<10)+1)
+				req := httptest.NewRequest(http.MethodPost, "/callback", strings.NewReader(body))
+				req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+				err := handler.ParseOAuthCallbackForm(httptest.NewRecorder(), req)
+				var maxErr *http.MaxBytesError
+				assert.ErrorAs(t, err, &maxErr)
+			},
+		},
+		{
+			name: "parses oauth callback form",
+			run: func(t *testing.T) {
+				req := httptest.NewRequest(http.MethodPost, "/callback", strings.NewReader("code=abc"))
+				req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+				require.NoError(t, handler.ParseOAuthCallbackForm(httptest.NewRecorder(), req))
+				assert.Equal(t, "abc", req.Form.Get("code"))
+			},
+		},
+		{
+			name: "reads proxy payload",
+			run: func(t *testing.T) {
+				req := httptest.NewRequest(http.MethodPost, "/api/chat/completions", bytes.NewReader([]byte(`{"model":"llama"}`)))
+				body, err := h.ReadProxyPayload(req)
+				require.NoError(t, err)
+				assert.Equal(t, `{"model":"llama"}`, string(body))
+			},
+		},
+		{
+			name: "writes proxy payload size error",
+			run: func(t *testing.T) {
+				tooLarge := bytes.Repeat([]byte("a"), int(5<<20)+1)
+				req := httptest.NewRequest(http.MethodPost, "/api/chat/completions", bytes.NewReader(tooLarge))
+				_, err := h.ReadProxyPayload(req)
+				require.Error(t, err)
+
+				rec := httptest.NewRecorder()
+				h.WriteProxyReadError(rec, err)
+				assert.Equal(t, http.StatusRequestEntityTooLarge, rec.Code)
+			},
+		},
+		{
+			name: "builds login redirect",
+			run: func(t *testing.T) {
+				redirect := oauthHandler.LoginRedirectURL("token-123")
+				assert.True(t, strings.HasPrefix(redirect, "https://llamero.example.com/login#"))
+				assert.Contains(t, redirect, "token=token-123")
+				assert.Contains(t, redirect, "expires_in=7200")
+			},
+		},
+		{
+			name: "resolves role from oauth groups",
+			run: func(t *testing.T) {
+				role, scopes, err := oauthHandler.DetermineRole(&oauthclient.UserInfo{Subject: "sub-1", Groups: []string{"admins", "admins"}})
+				require.NoError(t, err)
+				assert.Equal(t, "admin", role)
+				assert.Equal(t, []string{"models:write", "models:read"}, scopes)
+			},
+		},
+		{
+			name: "rejects unauthorized oauth groups",
+			run: func(t *testing.T) {
+				_, _, err := oauthHandler.DetermineRole(&oauthclient.UserInfo{Subject: "sub-2", Groups: []string{"unknown"}})
+				assert.Error(t, err)
+			},
+		},
 	}
 
-	role, scopes, err := h.DetermineRole(&oauthclient.UserInfo{Subject: "sub-1", Groups: []string{"admins", "admins"}})
-	if err != nil {
-		t.Fatalf("determineRole returned error: %v", err)
-	}
-	if role != "admin" || !reflect.DeepEqual(scopes, []string{"models:write", "models:read"}) {
-		t.Fatalf("unexpected resolved role/scopes: %s %#v", role, scopes)
-	}
-	if _, _, roleErr := h.DetermineRole(&oauthclient.UserInfo{
-		Subject: "sub-2",
-		Groups:  []string{"unknown"},
-	}); roleErr == nil {
-		t.Fatal("expected unauthorized groups to fail")
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tc.run(t)
+		})
 	}
 }
 
@@ -122,13 +130,9 @@ roles:
   - name: admin
     scopes: [models:write, models:read]
 `)
-	if err := os.WriteFile(path, []byte(raw), 0o600); err != nil {
-		t.Fatalf("write roles file: %v", err)
-	}
+	require.NoError(t, os.WriteFile(path, []byte(raw), 0o600))
 
 	store, err := roles.Load(path, map[string][]string{"admin": {"admins"}})
-	if err != nil {
-		t.Fatalf("load roles: %v", err)
-	}
+	require.NoError(t, err)
 	return store
 }

@@ -3,31 +3,48 @@ package handler_test
 import (
 	"net/http"
 	"net/http/httptest"
-	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/rhajizada/llamero/internal/handler"
 )
 
-func TestExtractUserContext(t *testing.T) {
+func TestTokenHelpers(t *testing.T) {
 	t.Parallel()
 
 	h := &handler.Handler{}
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/profile", nil)
-	if _, _, ok := h.ExtractUserContext(rec, req); ok {
-		t.Fatal("expected missing auth context to fail")
+	tests := []struct {
+		name string
+		run  func(*testing.T)
+	}{
+		{
+			name: "extract user context rejects missing auth context",
+			run: func(t *testing.T) {
+				rec := httptest.NewRecorder()
+				req := httptest.NewRequest(http.MethodGet, "/api/profile", nil)
+				_, _, ok := h.ExtractUserContext(rec, req)
+				assert.False(t, ok)
+			},
+		},
+		{
+			name: "missing scopes returns nil when no scopes requested",
+			run: func(t *testing.T) {
+				assert.Nil(t, handler.MissingScopes(nil, []string{"a"}))
+			},
+		},
+		{
+			name: "missing scopes returns values not granted",
+			run: func(t *testing.T) {
+				assert.Equal(t, []string{"c"}, handler.MissingScopes([]string{"a", "c"}, []string{"a", "b"}))
+			},
+		},
 	}
-}
 
-func TestMissingScopes(t *testing.T) {
-	t.Parallel()
-
-	if got := handler.MissingScopes(nil, []string{"a"}); got != nil {
-		t.Fatalf("expected nil missing scopes, got %#v", got)
-	}
-	got := handler.MissingScopes([]string{"a", "c"}, []string{"a", "b"})
-	if !reflect.DeepEqual(got, []string{"c"}) {
-		t.Fatalf("unexpected missing scopes: %#v", got)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tc.run(t)
+		})
 	}
 }

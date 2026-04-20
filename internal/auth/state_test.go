@@ -4,39 +4,60 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/rhajizada/llamero/internal/auth"
 )
 
-func TestStateStoreIssueAndConsume(t *testing.T) {
+func TestStateStoreLifecycle(t *testing.T) {
 	t.Parallel()
 
-	store := auth.NewStateStore(time.Minute)
-	token := store.Issue()
-	if token == "" {
-		t.Fatal("expected issued token")
-	}
-	if !store.Consume(token) {
-		t.Fatal("expected first consume to succeed")
-	}
-	if store.Consume(token) {
-		t.Fatal("expected second consume to fail")
-	}
-}
+	tests := []struct {
+		name string
+		ttl  time.Duration
+		run  func(*testing.T, *auth.StateStore)
+	}{
+		{
+			name: "issues and consumes token once",
+			ttl:  time.Minute,
+			run: func(t *testing.T, store *auth.StateStore) {
+				t.Helper()
 
-func TestStateStoreConsumeRejectsExpiredAndEmptyTokens(t *testing.T) {
-	t.Parallel()
+				token := store.Issue()
+				assert.NotEmpty(t, token)
+				assert.True(t, store.Consume(token))
+				assert.False(t, store.Consume(token))
+			},
+		},
+		{
+			name: "rejects empty token",
+			ttl:  5 * time.Millisecond,
+			run: func(t *testing.T, store *auth.StateStore) {
+				t.Helper()
 
-	store := auth.NewStateStore(5 * time.Millisecond)
-	if store.Consume("") {
-		t.Fatal("expected empty token to be rejected")
+				assert.False(t, store.Consume(""))
+			},
+		},
+		{
+			name: "rejects expired token repeatedly",
+			ttl:  5 * time.Millisecond,
+			run: func(t *testing.T, store *auth.StateStore) {
+				t.Helper()
+
+				token := store.Issue()
+				time.Sleep(20 * time.Millisecond)
+				assert.False(t, store.Consume(token))
+				assert.False(t, store.Consume(token))
+			},
+		},
 	}
 
-	token := store.Issue()
-	time.Sleep(20 * time.Millisecond)
-	if store.Consume(token) {
-		t.Fatal("expected expired token to be rejected")
-	}
-	if store.Consume(token) {
-		t.Fatal("expected expired token to stay invalid on repeated consume")
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store := auth.NewStateStore(tc.ttl)
+			tc.run(t, store)
+		})
 	}
 }

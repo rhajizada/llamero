@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/hibiken/asynq"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/rhajizada/llamero/internal/config"
 	"github.com/rhajizada/llamero/internal/roles"
@@ -43,9 +45,8 @@ roles:
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			if _, err := server.New(tc.cfg, tc.role, tc.svc, tc.task, slog.Default()); err == nil {
-				t.Fatalf("expected %s to fail", tc.name)
-			}
+			_, err := server.New(tc.cfg, tc.role, tc.svc, tc.task, slog.Default())
+			assert.Error(t, err)
 		})
 	}
 }
@@ -68,13 +69,11 @@ func TestNewTestServerDefaults(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			srv := server.NewTestServer(tc.cfg, tc.router, tc.logger)
-			if srv == nil {
-				t.Fatal("expected server")
-			}
-			if err := srv.Run(runCanceledContext(t)); err != nil {
-				t.Fatalf("unexpected Run error: %v", err)
-			}
+			require.NotNil(t, srv)
+			assert.NoError(t, srv.Run(runCanceledContext(t)))
 		})
 	}
 }
@@ -103,9 +102,7 @@ roles:
 		&asynq.Client{},
 		slog.Default(),
 	)
-	if err == nil {
-		t.Fatal("expected invalid JWT config to fail")
-	}
+	assert.Error(t, err)
 }
 
 func TestNewSuccess(t *testing.T) {
@@ -119,46 +116,49 @@ roles:
 `, nil)
 	cfg := &config.ServerConfig{JWT: testutil.MustWriteEd25519JWTConfig(t), Address: "127.0.0.1:0"}
 	srv, err := server.New(cfg, roleStore, service.New(nil, nil), &asynq.Client{}, nil)
-	if err != nil {
-		t.Fatalf("expected server.New success, got %v", err)
-	}
-	if srv == nil {
-		t.Fatal("expected server")
-	}
+	require.NoError(t, err)
+	assert.NotNil(t, srv)
 }
 
 func TestRun(t *testing.T) {
 	t.Parallel()
 
-	t.Run("invalid address", func(t *testing.T) {
-		t.Parallel()
-
-		srv := server.NewTestServer(
-			&config.ServerConfig{Address: "bad:addr:123"},
-			http.NewServeMux(),
-			slog.Default(),
-		)
-		err := srv.Run(context.Background())
-		if err == nil {
-			t.Fatal("expected invalid address to fail")
-		}
-	})
-
-	t.Run("context canceled", func(t *testing.T) {
-		t.Parallel()
-
-		srv := server.NewTestServer(
-			&config.ServerConfig{Address: "127.0.0.1:0"},
-			http.NewServeMux(),
-			slog.Default(),
-		)
-		ctx, cancel := context.WithCancel(context.Background())
-		go func() {
-			time.Sleep(50 * time.Millisecond)
-			cancel()
-		}()
-		if err := srv.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
-			t.Fatalf("unexpected Run error: %v", err)
-		}
-	})
+	for _, tc := range []struct {
+		name string
+		run  func(*testing.T)
+	}{
+		{
+			name: "invalid address",
+			run: func(t *testing.T) {
+				srv := server.NewTestServer(
+					&config.ServerConfig{Address: "bad:addr:123"},
+					http.NewServeMux(),
+					slog.Default(),
+				)
+				assert.Error(t, srv.Run(context.Background()))
+			},
+		},
+		{
+			name: "context canceled",
+			run: func(t *testing.T) {
+				srv := server.NewTestServer(
+					&config.ServerConfig{Address: "127.0.0.1:0"},
+					http.NewServeMux(),
+					slog.Default(),
+				)
+				ctx, cancel := context.WithCancel(context.Background())
+				go func() {
+					time.Sleep(50 * time.Millisecond)
+					cancel()
+				}()
+				err := srv.Run(ctx)
+				assert.True(t, err == nil || errors.Is(err, context.Canceled))
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tc.run(t)
+		})
+	}
 }

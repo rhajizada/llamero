@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -21,10 +22,14 @@ import (
 	"github.com/rhajizada/llamero/internal/auth"
 	"github.com/rhajizada/llamero/internal/config"
 	"github.com/rhajizada/llamero/internal/db"
+	"github.com/rhajizada/llamero/internal/redisstore"
 	"github.com/rhajizada/llamero/internal/roles"
 )
 
-const postgresReadyLogOccurrences = 2
+const (
+	postgresReadyLogOccurrences = 2
+	redisPort                   = "6379/tcp"
+)
 
 func MustWriteEd25519JWTConfig(t *testing.T) config.JWTConfig {
 	t.Helper()
@@ -157,4 +162,51 @@ func MustOpenMigratedPostgres(t *testing.T) *pgxpool.Pool {
 	t.Cleanup(pool.Close)
 
 	return pool
+}
+
+func MustStartRedis(t *testing.T) (context.Context, string) {
+	t.Helper()
+	testcontainers.SkipIfProviderIsNotHealthy(t)
+
+	ctx := context.Background()
+	container, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        "redis:7-alpine",
+			ExposedPorts: []string{redisPort},
+			WaitingFor:   wait.ForListeningPort(redisPort).WithStartupTimeout(time.Minute),
+		},
+		Started: true,
+	})
+	if err != nil {
+		t.Fatalf("start redis container: %v", err)
+	}
+
+	t.Cleanup(func() {
+		if terminateErr := container.Terminate(context.Background()); terminateErr != nil {
+			t.Errorf("terminate redis container: %v", terminateErr)
+		}
+	})
+
+	host, err := container.Host(ctx)
+	if err != nil {
+		t.Fatalf("resolve redis host: %v", err)
+	}
+	port, err := container.MappedPort(ctx, redisPort)
+	if err != nil {
+		t.Fatalf("resolve redis port: %v", err)
+	}
+
+	return ctx, net.JoinHostPort(host, port.Port())
+}
+
+func MustOpenRedisStore(t *testing.T) *redisstore.Store {
+	t.Helper()
+
+	_, addr := MustStartRedis(t)
+	store, err := redisstore.New(&config.RedisConfig{Addr: addr})
+	if err != nil {
+		t.Fatalf("connect redis store: %v", err)
+	}
+
+	return store
 }

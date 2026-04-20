@@ -20,9 +20,6 @@ import (
 
 func TestCreatePersonalAccessToken(t *testing.T) {
 	ctx := context.Background()
-	repo := repository.New(testutil.MustOpenMigratedPostgres(t))
-	user := seedServiceUser(ctx, t, repo)
-	svc := service.New(repo, nil)
 
 	tests := []struct {
 		name     string
@@ -33,7 +30,6 @@ func TestCreatePersonalAccessToken(t *testing.T) {
 		{
 			name: "creates token with default type",
 			params: service.CreateTokenParams{
-				UserID:    user.ID,
 				Name:      " cli ",
 				Scopes:    []string{"models:list"},
 				JTI:       uuid.NewString(),
@@ -44,7 +40,6 @@ func TestCreatePersonalAccessToken(t *testing.T) {
 		{
 			name: "creates token with explicit type",
 			params: service.CreateTokenParams{
-				UserID:    user.ID,
 				Name:      "automation",
 				Scopes:    []string{"models:list", "tokens:read"},
 				TokenType: auth.TokenTypePAT,
@@ -56,7 +51,6 @@ func TestCreatePersonalAccessToken(t *testing.T) {
 		{
 			name: "rejects missing name",
 			params: service.CreateTokenParams{
-				UserID:    user.ID,
 				Scopes:    []string{"models:list"},
 				JTI:       uuid.NewString(),
 				ExpiresAt: time.Now().Add(time.Hour),
@@ -76,7 +70,6 @@ func TestCreatePersonalAccessToken(t *testing.T) {
 		{
 			name: "rejects missing scopes",
 			params: service.CreateTokenParams{
-				UserID:    user.ID,
 				Name:      "cli",
 				JTI:       uuid.NewString(),
 				ExpiresAt: time.Now().Add(time.Hour),
@@ -86,7 +79,6 @@ func TestCreatePersonalAccessToken(t *testing.T) {
 		{
 			name: "rejects missing jti",
 			params: service.CreateTokenParams{
-				UserID:    user.ID,
 				Name:      "cli",
 				Scopes:    []string{"models:list"},
 				ExpiresAt: time.Now().Add(time.Hour),
@@ -96,7 +88,6 @@ func TestCreatePersonalAccessToken(t *testing.T) {
 		{
 			name: "rejects expired token",
 			params: service.CreateTokenParams{
-				UserID:    user.ID,
 				Name:      "cli",
 				Scopes:    []string{"models:list"},
 				JTI:       uuid.NewString(),
@@ -119,19 +110,28 @@ func TestCreatePersonalAccessToken(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			token, err := svc.CreatePersonalAccessToken(ctx, tc.params)
+			repo := repository.New(testutil.MustOpenMigratedPostgres(t))
+			user := seedServiceUser(ctx, t, repo)
+			svc := service.New(repo, nil)
+
+			params := tc.params
+			if params.UserID == uuid.Nil && tc.name != "rejects missing user id" && tc.name != "surfaces repository failure for missing user" {
+				params.UserID = user.ID
+			}
+
+			token, err := svc.CreatePersonalAccessToken(ctx, params)
 			if tc.wantCode != 0 {
 				assertServiceError(t, err, tc.wantCode)
 				return
 			}
 
 			require.NoError(t, err)
-			assert.Equal(t, strings.TrimSpace(tc.params.Name), token.Name)
+			assert.Equal(t, strings.TrimSpace(params.Name), token.Name)
 			assert.Equal(t, tc.wantType, token.TokenType)
-			assert.Equal(t, tc.params.UserID, token.UserID)
-			assert.Equal(t, tc.params.Scopes, token.Scopes)
+			assert.Equal(t, params.UserID, token.UserID)
+			assert.Equal(t, params.Scopes, token.Scopes)
 
-			stored, getErr := repo.GetTokenByJTI(ctx, tc.params.JTI)
+			stored, getErr := repo.GetTokenByJTI(ctx, params.JTI)
 			require.NoError(t, getErr)
 			assert.Equal(t, token.ID, stored.ID)
 		})
@@ -140,16 +140,6 @@ func TestCreatePersonalAccessToken(t *testing.T) {
 
 func TestPersonalAccessTokenLifecycle(t *testing.T) {
 	ctx := context.Background()
-	repo := repository.New(testutil.MustOpenMigratedPostgres(t))
-	user := seedServiceUser(ctx, t, repo)
-	svc := service.New(repo, nil)
-
-	older := mustCreateServiceToken(ctx, t, repo, user.ID, "older")
-	time.Sleep(10 * time.Millisecond)
-	newer := mustCreateServiceToken(ctx, t, repo, user.ID, "newer")
-	revoked := mustCreateServiceToken(ctx, t, repo, user.ID, "revoked")
-	_, err := repo.RevokeToken(ctx, repository.RevokeTokenParams{ID: revoked.ID, UserID: user.ID})
-	require.NoError(t, err)
 
 	tests := []struct {
 		name string
@@ -158,6 +148,16 @@ func TestPersonalAccessTokenLifecycle(t *testing.T) {
 		{
 			name: "lists active tokens in descending order",
 			run: func(t *testing.T) {
+				repo := repository.New(testutil.MustOpenMigratedPostgres(t))
+				user := seedServiceUser(ctx, t, repo)
+				svc := service.New(repo, nil)
+				older := mustCreateServiceToken(ctx, t, repo, user.ID, "older")
+				time.Sleep(10 * time.Millisecond)
+				newer := mustCreateServiceToken(ctx, t, repo, user.ID, "newer")
+				revoked := mustCreateServiceToken(ctx, t, repo, user.ID, "revoked")
+				_, err := repo.RevokeToken(ctx, repository.RevokeTokenParams{ID: revoked.ID, UserID: user.ID})
+				require.NoError(t, err)
+
 				tokens, listErr := svc.ListPersonalAccessTokens(ctx, user.ID)
 				require.NoError(t, listErr)
 				require.Len(t, tokens, 2)
@@ -167,6 +167,11 @@ func TestPersonalAccessTokenLifecycle(t *testing.T) {
 		{
 			name: "gets token by id",
 			run: func(t *testing.T) {
+				repo := repository.New(testutil.MustOpenMigratedPostgres(t))
+				user := seedServiceUser(ctx, t, repo)
+				svc := service.New(repo, nil)
+				newer := mustCreateServiceToken(ctx, t, repo, user.ID, "newer")
+
 				token, getErr := svc.GetPersonalAccessToken(ctx, user.ID, newer.ID)
 				require.NoError(t, getErr)
 				assert.Equal(t, newer.ID, token.ID)
@@ -175,6 +180,10 @@ func TestPersonalAccessTokenLifecycle(t *testing.T) {
 		{
 			name: "returns not found for missing token",
 			run: func(t *testing.T) {
+				repo := repository.New(testutil.MustOpenMigratedPostgres(t))
+				user := seedServiceUser(ctx, t, repo)
+				svc := service.New(repo, nil)
+
 				_, getErr := svc.GetPersonalAccessToken(ctx, user.ID, uuid.New())
 				assertServiceError(t, getErr, http.StatusNotFound)
 			},
@@ -182,19 +191,26 @@ func TestPersonalAccessTokenLifecycle(t *testing.T) {
 		{
 			name: "rejects missing ids",
 			run: func(t *testing.T) {
+				repo := repository.New(testutil.MustOpenMigratedPostgres(t))
+				svc := service.New(repo, nil)
+				newerID := uuid.New()
+
 				_, listErr := svc.ListPersonalAccessTokens(ctx, uuid.Nil)
 				assertServiceError(t, listErr, http.StatusBadRequest)
 
-				_, getErr := svc.GetPersonalAccessToken(ctx, uuid.Nil, newer.ID)
+				_, getErr := svc.GetPersonalAccessToken(ctx, uuid.Nil, newerID)
 				assertServiceError(t, getErr, http.StatusBadRequest)
 
-				revokeErr := svc.RevokePersonalAccessToken(ctx, uuid.Nil, newer.ID)
+				revokeErr := svc.RevokePersonalAccessToken(ctx, uuid.Nil, newerID)
 				assertServiceError(t, revokeErr, http.StatusBadRequest)
 			},
 		},
 		{
 			name: "revokes token",
 			run: func(t *testing.T) {
+				repo := repository.New(testutil.MustOpenMigratedPostgres(t))
+				user := seedServiceUser(ctx, t, repo)
+				svc := service.New(repo, nil)
 				token := mustCreateServiceToken(ctx, t, repo, user.ID, "revoke-me")
 				require.NoError(t, svc.RevokePersonalAccessToken(ctx, user.ID, token.ID))
 
@@ -209,6 +225,10 @@ func TestPersonalAccessTokenLifecycle(t *testing.T) {
 		{
 			name: "returns not found when revoking missing token",
 			run: func(t *testing.T) {
+				repo := repository.New(testutil.MustOpenMigratedPostgres(t))
+				user := seedServiceUser(ctx, t, repo)
+				svc := service.New(repo, nil)
+
 				revokeErr := svc.RevokePersonalAccessToken(ctx, user.ID, uuid.New())
 				assertServiceError(t, revokeErr, http.StatusNotFound)
 			},
@@ -222,79 +242,95 @@ func TestPersonalAccessTokenLifecycle(t *testing.T) {
 
 func TestValidatePAT(t *testing.T) {
 	ctx := context.Background()
-	repo := repository.New(testutil.MustOpenMigratedPostgres(t))
-	user := seedServiceUser(ctx, t, repo)
-	svc := service.New(repo, nil)
-
-	valid := mustCreateServiceToken(ctx, t, repo, user.ID, "valid")
-	revoked := mustCreateServiceToken(ctx, t, repo, user.ID, "revoked")
-	_, err := repo.RevokeToken(ctx, repository.RevokeTokenParams{ID: revoked.ID, UserID: user.ID})
-	require.NoError(t, err)
-
-	expired := mustCreateServiceTokenWithParams(ctx, t, repo, repository.CreateTokenParams{
-		UserID:    user.ID,
-		Name:      "expired",
-		Scopes:    []string{"models:list"},
-		TokenType: auth.TokenTypePAT,
-		Jti:       uuid.NewString(),
-		ExpiresAt: time.Now().Add(-time.Hour),
-	})
-	wrongType := mustCreateServiceTokenWithParams(ctx, t, repo, repository.CreateTokenParams{
-		UserID:    user.ID,
-		Name:      "session",
-		Scopes:    []string{"models:list"},
-		TokenType: auth.TokenTypeSession,
-		Jti:       uuid.NewString(),
-		ExpiresAt: time.Now().Add(time.Hour),
-	})
 
 	tests := []struct {
 		name     string
-		claims   *auth.Claims
+		prepare  func(*testing.T) (*service.Service, *repository.Queries, repository.User, *auth.Claims)
 		wantCode int
-		check    func(*testing.T)
+		check    func(*testing.T, *repository.Queries, repository.User)
 	}{
-		{name: "rejects missing claims", wantCode: http.StatusUnauthorized},
-		{name: "rejects missing jti", claims: &auth.Claims{}, wantCode: http.StatusUnauthorized},
+		{name: "rejects missing claims", prepare: func(t *testing.T) (*service.Service, *repository.Queries, repository.User, *auth.Claims) {
+			repo := repository.New(testutil.MustOpenMigratedPostgres(t))
+			user := seedServiceUser(ctx, t, repo)
+			return service.New(repo, nil), repo, user, nil
+		}, wantCode: http.StatusUnauthorized},
+		{name: "rejects missing jti", prepare: func(t *testing.T) (*service.Service, *repository.Queries, repository.User, *auth.Claims) {
+			repo := repository.New(testutil.MustOpenMigratedPostgres(t))
+			user := seedServiceUser(ctx, t, repo)
+			return service.New(repo, nil), repo, user, &auth.Claims{}
+		}, wantCode: http.StatusUnauthorized},
 		{
-			name:     "rejects missing token record",
-			claims:   &auth.Claims{RegisteredClaims: jwtClaims(user.ID.String(), uuid.NewString())},
+			name: "rejects missing token record",
+			prepare: func(t *testing.T) (*service.Service, *repository.Queries, repository.User, *auth.Claims) {
+				repo := repository.New(testutil.MustOpenMigratedPostgres(t))
+				user := seedServiceUser(ctx, t, repo)
+				return service.New(repo, nil), repo, user, &auth.Claims{RegisteredClaims: jwtClaims(user.ID.String(), uuid.NewString())}
+			},
 			wantCode: http.StatusUnauthorized,
 		},
 		{
-			name:     "rejects token type mismatch",
-			claims:   &auth.Claims{RegisteredClaims: jwtClaims(user.ID.String(), wrongType.Jti)},
+			name: "rejects token type mismatch",
+			prepare: func(t *testing.T) (*service.Service, *repository.Queries, repository.User, *auth.Claims) {
+				repo := repository.New(testutil.MustOpenMigratedPostgres(t))
+				user := seedServiceUser(ctx, t, repo)
+				wrongType := mustCreateServiceTokenWithParams(ctx, t, repo, repository.CreateTokenParams{UserID: user.ID, Name: "session", Scopes: []string{"models:list"}, TokenType: auth.TokenTypeSession, Jti: uuid.NewString(), ExpiresAt: time.Now().Add(time.Hour)})
+				return service.New(repo, nil), repo, user, &auth.Claims{RegisteredClaims: jwtClaims(user.ID.String(), wrongType.Jti)}
+			},
 			wantCode: http.StatusUnauthorized,
 		},
 		{
-			name:     "rejects revoked token",
-			claims:   &auth.Claims{RegisteredClaims: jwtClaims(user.ID.String(), revoked.Jti)},
+			name: "rejects revoked token",
+			prepare: func(t *testing.T) (*service.Service, *repository.Queries, repository.User, *auth.Claims) {
+				repo := repository.New(testutil.MustOpenMigratedPostgres(t))
+				user := seedServiceUser(ctx, t, repo)
+				revoked := mustCreateServiceToken(ctx, t, repo, user.ID, "revoked")
+				_, err := repo.RevokeToken(ctx, repository.RevokeTokenParams{ID: revoked.ID, UserID: user.ID})
+				require.NoError(t, err)
+				return service.New(repo, nil), repo, user, &auth.Claims{RegisteredClaims: jwtClaims(user.ID.String(), revoked.Jti)}
+			},
 			wantCode: http.StatusUnauthorized,
 		},
 		{
-			name:     "rejects subject mismatch",
-			claims:   &auth.Claims{RegisteredClaims: jwtClaims(uuid.NewString(), valid.Jti)},
+			name: "rejects subject mismatch",
+			prepare: func(t *testing.T) (*service.Service, *repository.Queries, repository.User, *auth.Claims) {
+				repo := repository.New(testutil.MustOpenMigratedPostgres(t))
+				user := seedServiceUser(ctx, t, repo)
+				valid := mustCreateServiceToken(ctx, t, repo, user.ID, "valid")
+				return service.New(repo, nil), repo, user, &auth.Claims{RegisteredClaims: jwtClaims(uuid.NewString(), valid.Jti)}
+			},
 			wantCode: http.StatusUnauthorized,
 		},
 		{
-			name:     "rejects expired token",
-			claims:   &auth.Claims{RegisteredClaims: jwtClaims(user.ID.String(), expired.Jti)},
+			name: "rejects expired token",
+			prepare: func(t *testing.T) (*service.Service, *repository.Queries, repository.User, *auth.Claims) {
+				repo := repository.New(testutil.MustOpenMigratedPostgres(t))
+				user := seedServiceUser(ctx, t, repo)
+				expired := mustCreateServiceTokenWithParams(ctx, t, repo, repository.CreateTokenParams{UserID: user.ID, Name: "expired", Scopes: []string{"models:list"}, TokenType: auth.TokenTypePAT, Jti: uuid.NewString(), ExpiresAt: time.Now().Add(-time.Hour)})
+				return service.New(repo, nil), repo, user, &auth.Claims{RegisteredClaims: jwtClaims(user.ID.String(), expired.Jti)}
+			},
 			wantCode: http.StatusUnauthorized,
 		},
 		{
-			name:   "marks valid token used",
-			claims: &auth.Claims{RegisteredClaims: jwtClaims(user.ID.String(), valid.Jti)},
-			check: func(t *testing.T) {
-				stored, getErr := repo.GetTokenByJTI(ctx, valid.Jti)
+			name: "marks valid token used",
+			prepare: func(t *testing.T) (*service.Service, *repository.Queries, repository.User, *auth.Claims) {
+				repo := repository.New(testutil.MustOpenMigratedPostgres(t))
+				user := seedServiceUser(ctx, t, repo)
+				valid := mustCreateServiceToken(ctx, t, repo, user.ID, "valid")
+				return service.New(repo, nil), repo, user, &auth.Claims{RegisteredClaims: jwtClaims(user.ID.String(), valid.Jti)}
+			},
+			check: func(t *testing.T, repo *repository.Queries, user repository.User) {
+				stored, getErr := repo.ListTokensByUser(ctx, user.ID)
 				require.NoError(t, getErr)
-				assert.NotNil(t, stored.LastUsedAt)
+				require.NotEmpty(t, stored)
+				assert.NotNil(t, stored[0].LastUsedAt)
 			},
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			validateErr := svc.ValidatePAT(ctx, tc.claims)
+			svc, repo, user, claims := tc.prepare(t)
+			validateErr := svc.ValidatePAT(ctx, claims)
 			if tc.wantCode != 0 {
 				assertServiceError(t, validateErr, tc.wantCode)
 				return
@@ -302,7 +338,7 @@ func TestValidatePAT(t *testing.T) {
 
 			require.NoError(t, validateErr)
 			if tc.check != nil {
-				tc.check(t)
+				tc.check(t, repo, user)
 			}
 		})
 	}

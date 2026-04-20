@@ -24,13 +24,13 @@ func main() {
 	logger := logging.New()
 	slog.SetDefault(logger)
 
-	if err := run(); err != nil {
+	if err := Run(); err != nil {
 		logger.Error("worker failed", "err", err)
 		os.Exit(1)
 	}
 }
 
-func run() error {
+func Run() error {
 	cfg, err := config.LoadWorker()
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
@@ -39,7 +39,7 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	env, err := newWorkerEnvironment(ctx, cfg)
+	env, err := NewWorkerEnvironment(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -74,8 +74,8 @@ func (e *workerEnvironment) addCloser(fn func()) {
 	e.closers = append(e.closers, fn)
 }
 
-func newWorkerEnvironment(ctx context.Context, cfg *config.WorkerConfig) (*workerEnvironment, error) {
-	pool, err := prepareDatabase(ctx, cfg)
+func NewWorkerEnvironment(ctx context.Context, cfg *config.WorkerConfig) (*workerEnvironment, error) {
+	pool, err := PrepareDatabase(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func newWorkerEnvironment(ctx context.Context, cfg *config.WorkerConfig) (*worke
 	return env, nil
 }
 
-func prepareDatabase(ctx context.Context, cfg *config.WorkerConfig) (*pgxpool.Pool, error) {
+func PrepareDatabase(ctx context.Context, cfg *config.WorkerConfig) (*pgxpool.Pool, error) {
 	dsn := cfg.Database.Postgres.DSN()
 	if err := db.Migrate(ctx, dsn, cfg.Database.MigrationsDir); err != nil {
 		return nil, fmt.Errorf("migrate database: %w", err)

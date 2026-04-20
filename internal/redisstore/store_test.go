@@ -2,27 +2,20 @@ package redisstore_test
 
 import (
 	"context"
-	"reflect"
 	"testing"
 	"time"
 
-	"github.com/alicebob/miniredis/v2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
-	"github.com/rhajizada/llamero/internal/config"
 	"github.com/rhajizada/llamero/internal/redisstore"
+	"github.com/rhajizada/llamero/internal/testutil"
 )
 
-func TestStoreBackendLifecycle(t *testing.T) {
+func TestRedisStoreLifecycle(t *testing.T) {
 	t.Parallel()
 
-	mr := miniredis.RunT(t)
-	store, err := redisstore.New(&config.RedisConfig{Addr: mr.Addr()})
-	if err != nil {
-		t.Fatalf("redisstore.New returned error: %v", err)
-	}
-	if store.Client() == nil {
-		t.Fatal("expected redis client")
-	}
+	store := newRedisStore(t)
 
 	ctx := context.Background()
 	now := time.Unix(1_700_000_000, 0)
@@ -41,50 +34,55 @@ func TestStoreBackendLifecycle(t *testing.T) {
 		}},
 		UpdatedAt: now,
 	}
-	if saveErr := store.SaveBackend(ctx, status, 1); saveErr != nil {
-		t.Fatalf("SaveBackend returned error: %v", saveErr)
+	tests := []struct {
+		name string
+		run  func(*testing.T)
+	}{
+		{
+			name: "saves lists loads and deletes backend",
+			run: func(t *testing.T) {
+				require.NotNil(t, store.Client())
+				require.NoError(t, store.SaveBackend(ctx, status, 1))
+
+				ids, err := store.ListBackendIDs(ctx, 0, -1)
+				require.NoError(t, err)
+				assert.Equal(t, []string{"backend-a"}, ids)
+
+				backends, err := store.ListBackends(ctx)
+				require.NoError(t, err)
+				require.Len(t, backends, 1)
+				assert.Equal(t, status.Address, backends[0].Address)
+
+				loaded, err := store.GetBackend(ctx, "backend-a")
+				require.NoError(t, err)
+				assert.Equal(t, "backend-a", loaded.ID)
+				assert.True(t, loaded.UpdatedAt.Equal(now))
+
+				require.NoError(t, store.DeleteBackend(ctx, "backend-a"))
+				loaded, err = store.GetBackend(ctx, "backend-a")
+				require.NoError(t, err)
+				assert.Empty(t, loaded.ID)
+			},
+		},
+		{
+			name: "requires config",
+			run: func(t *testing.T) {
+				_, err := redisstore.New(nil)
+				assert.Error(t, err)
+			},
+		},
 	}
 
-	ids, err := store.ListBackendIDs(ctx, 0, -1)
-	if err != nil {
-		t.Fatalf("ListBackendIDs returned error: %v", err)
-	}
-	if !reflect.DeepEqual(ids, []string{"backend-a"}) {
-		t.Fatalf("unexpected ids: %#v", ids)
-	}
-
-	backends, err := store.ListBackends(ctx)
-	if err != nil {
-		t.Fatalf("ListBackends returned error: %v", err)
-	}
-	if len(backends) != 1 || backends[0].Address != status.Address {
-		t.Fatalf("unexpected backends: %#v", backends)
-	}
-
-	loaded, err := store.GetBackend(ctx, "backend-a")
-	if err != nil {
-		t.Fatalf("GetBackend returned error: %v", err)
-	}
-	if loaded.ID != "backend-a" || !loaded.UpdatedAt.Equal(now) {
-		t.Fatalf("unexpected loaded backend: %#v", loaded)
-	}
-
-	if deleteErr := store.DeleteBackend(ctx, "backend-a"); deleteErr != nil {
-		t.Fatalf("DeleteBackend returned error: %v", deleteErr)
-	}
-	loaded, err = store.GetBackend(ctx, "backend-a")
-	if err != nil {
-		t.Fatalf("GetBackend after delete returned error: %v", err)
-	}
-	if loaded.ID != "" {
-		t.Fatalf("expected missing backend after delete, got %#v", loaded)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tc.run(t)
+		})
 	}
 }
 
-func TestNewStoreRequiresConfig(t *testing.T) {
-	t.Parallel()
+func newRedisStore(t *testing.T) *redisstore.Store {
+	t.Helper()
 
-	if _, err := redisstore.New(nil); err == nil {
-		t.Fatal("expected nil config to fail")
-	}
+	return testutil.MustOpenRedisStore(t)
 }

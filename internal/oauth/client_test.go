@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/rhajizada/llamero/internal/config"
 	"github.com/rhajizada/llamero/internal/oauth"
 )
@@ -26,17 +29,13 @@ func TestBuildAuthorizeURL(t *testing.T) {
 	}, nil)
 
 	target, err := client.BuildAuthorizeURL("state-123")
-	if err != nil {
-		t.Fatalf("BuildAuthorizeURL returned error: %v", err)
-	}
+	require.NoError(t, err)
 	parsed, err := url.Parse(target)
-	if err != nil {
-		t.Fatalf("parse authorize URL: %v", err)
-	}
+	require.NoError(t, err)
 	q := parsed.Query()
-	if q.Get("client_id") != "client-id" || q.Get("state") != "state-123" || q.Get("audience") != "api-audience" {
-		t.Fatalf("unexpected authorize params: %#v", q)
-	}
+	assert.Equal(t, "client-id", q.Get("client_id"))
+	assert.Equal(t, "state-123", q.Get("state"))
+	assert.Equal(t, "api-audience", q.Get("audience"))
 }
 
 func TestBuildAuthorizeURLError(t *testing.T) {
@@ -45,9 +44,8 @@ func TestBuildAuthorizeURLError(t *testing.T) {
 	client := oauth.New(&config.ServerConfig{
 		OAuth: config.OAuthConfig{AuthorizeURL: "://bad-url"},
 	}, nil)
-	if _, err := client.BuildAuthorizeURL("state-123"); err == nil {
-		t.Fatal("expected invalid authorize URL to fail")
-	}
+	_, err := client.BuildAuthorizeURL("state-123")
+	assert.Error(t, err)
 }
 
 func TestExchangeCodeAndFetchUserInfo(t *testing.T) {
@@ -88,20 +86,14 @@ func TestExchangeCodeAndFetchUserInfo(t *testing.T) {
 	}, server.Client())
 
 	tokenResp, err := client.ExchangeCode(context.Background(), "code-123")
-	if err != nil {
-		t.Fatalf("ExchangeCode returned error: %v", err)
-	}
-	if tokenResp.AccessToken != "token-123" {
-		t.Fatalf("unexpected access token: %q", tokenResp.AccessToken)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, "token-123", tokenResp.AccessToken)
 
 	userInfo, err := client.FetchUserInfo(context.Background(), tokenResp.AccessToken)
-	if err != nil {
-		t.Fatalf("FetchUserInfo returned error: %v", err)
-	}
-	if userInfo.Subject != "sub-1" || userInfo.Email != "user@example.com" || userInfo.Name != "Test User" {
-		t.Fatalf("unexpected user info: %#v", userInfo)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, "sub-1", userInfo.Subject)
+	assert.Equal(t, "user@example.com", userInfo.Email)
+	assert.Equal(t, "Test User", userInfo.Name)
 }
 
 func TestExchangeCodeAndFetchUserInfoErrors(t *testing.T) {
@@ -196,9 +188,7 @@ func TestExchangeCodeAndFetchUserInfoErrors(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			if err := tc.run(nil); err == nil {
-				t.Fatal("expected error")
-			}
+			assert.Error(t, tc.run(nil))
 		})
 	}
 
@@ -206,10 +196,8 @@ func TestExchangeCodeAndFetchUserInfoErrors(t *testing.T) {
 	cfg.OAuth.UserInfoURL = server.URL + "/userinfo-fallback-email"
 	client := oauth.New(&cfg, server.Client())
 	info, err := client.FetchUserInfo(context.Background(), "token")
-	if err != nil {
-		t.Fatalf("FetchUserInfo fallback email returned error: %v", err)
-	}
-	if info.Email != "sub-1" || len(info.Groups) != 1 || info.Groups[0] != "admins" {
-		t.Fatalf("unexpected fallback user info: %#v", info)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, "sub-1", info.Email)
+	require.Len(t, info.Groups, 1)
+	assert.Equal(t, "admins", info.Groups[0])
 }

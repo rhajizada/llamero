@@ -33,13 +33,13 @@ func main() {
 	logger := logging.New()
 	slog.SetDefault(logger)
 
-	if err := run(logger); err != nil {
+	if err := Run(logger); err != nil {
 		logger.Error("server failed", "err", err)
 		os.Exit(1)
 	}
 }
 
-func run(logger *slog.Logger) error {
+func Run(logger *slog.Logger) error {
 	cfg, err := config.LoadServer()
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
@@ -48,7 +48,7 @@ func run(logger *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	env, err := newServerEnvironment(ctx, cfg, logger)
+	env, err := NewServerEnvironment(ctx, cfg, logger)
 	if err != nil {
 		return err
 	}
@@ -82,7 +82,7 @@ func (e *serverEnvironment) addCloser(fn func()) {
 	e.closers = append(e.closers, fn)
 }
 
-func newServerEnvironment(
+func NewServerEnvironment(
 	ctx context.Context,
 	cfg *config.ServerConfig,
 	logger *slog.Logger,
@@ -92,7 +92,7 @@ func newServerEnvironment(
 		return nil, fmt.Errorf("load roles: %w", err)
 	}
 
-	pool, err := setupDatabase(ctx, cfg)
+	pool, err := SetupDatabase(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func newServerEnvironment(
 	return env, nil
 }
 
-func setupDatabase(ctx context.Context, cfg *config.ServerConfig) (*pgxpool.Pool, error) {
+func SetupDatabase(ctx context.Context, cfg *config.ServerConfig) (*pgxpool.Pool, error) {
 	dsn := cfg.Database.Postgres.DSN()
 	if err := db.Migrate(ctx, dsn, cfg.Database.MigrationsDir); err != nil {
 		return nil, fmt.Errorf("migrate database: %w", err)

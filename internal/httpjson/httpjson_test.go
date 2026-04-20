@@ -3,8 +3,9 @@ package httpjson_test
 import (
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/rhajizada/llamero/internal/httpjson"
 )
@@ -12,24 +13,43 @@ import (
 func TestWriteAndWriteError(t *testing.T) {
 	t.Parallel()
 
-	rec := httptest.NewRecorder()
-	httpjson.Write(rec, http.StatusAccepted, map[string]string{"status": "ok"})
-	if rec.Code != http.StatusAccepted {
-		t.Fatalf("unexpected status: %d", rec.Code)
-	}
-	if got := rec.Header().Get("Content-Type"); got != "application/json" {
-		t.Fatalf("unexpected content type: %q", got)
-	}
-	if !strings.Contains(rec.Body.String(), `"status":"ok"`) {
-		t.Fatalf("unexpected body: %s", rec.Body.String())
+	tests := []struct {
+		name       string
+		write      func(*httptest.ResponseRecorder)
+		wantCode   int
+		wantBody   string
+		wantHeader string
+	}{
+		{
+			name: "writes json payload",
+			write: func(rec *httptest.ResponseRecorder) {
+				httpjson.Write(rec, http.StatusAccepted, map[string]string{"status": "ok"})
+			},
+			wantCode:   http.StatusAccepted,
+			wantBody:   `"status":"ok"`,
+			wantHeader: "application/json",
+		},
+		{
+			name: "writes json error payload",
+			write: func(rec *httptest.ResponseRecorder) {
+				httpjson.WriteError(rec, http.StatusBadRequest, "bad request")
+			},
+			wantCode:   http.StatusBadRequest,
+			wantBody:   `"error":"bad request"`,
+			wantHeader: "application/json",
+		},
 	}
 
-	rec = httptest.NewRecorder()
-	httpjson.WriteError(rec, http.StatusBadRequest, "bad request")
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("unexpected error status: %d", rec.Code)
-	}
-	if !strings.Contains(rec.Body.String(), `"error":"bad request"`) {
-		t.Fatalf("unexpected error body: %s", rec.Body.String())
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			rec := httptest.NewRecorder()
+			tc.write(rec)
+
+			assert.Equal(t, tc.wantCode, rec.Code)
+			assert.Equal(t, tc.wantHeader, rec.Header().Get("Content-Type"))
+			assert.Contains(t, rec.Body.String(), tc.wantBody)
+		})
 	}
 }

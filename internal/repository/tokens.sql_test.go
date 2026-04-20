@@ -17,8 +17,6 @@ import (
 
 func TestTokenQueries(t *testing.T) {
 	ctx := context.Background()
-	pool := testutil.MustOpenMigratedPostgres(t)
-	queries := repository.New(pool)
 
 	tests := []struct {
 		name string
@@ -27,6 +25,7 @@ func TestTokenQueries(t *testing.T) {
 		{
 			name: "creates and fetches token by id and jti",
 			run: func(t *testing.T) {
+				queries := repository.New(testutil.MustOpenMigratedPostgres(t))
 				user := seedRepositoryUser(ctx, t, queries)
 				expiresAt := time.Now().Add(2 * time.Hour)
 				created, err := queries.CreateToken(ctx, repository.CreateTokenParams{
@@ -57,6 +56,7 @@ func TestTokenQueries(t *testing.T) {
 		{
 			name: "lists only active tokens in descending order",
 			run: func(t *testing.T) {
+				queries := repository.New(testutil.MustOpenMigratedPostgres(t))
 				user := seedRepositoryUser(ctx, t, queries)
 				older := mustCreateRepositoryToken(ctx, t, queries, user.ID, "older")
 				time.Sleep(10 * time.Millisecond)
@@ -84,6 +84,7 @@ func TestTokenQueries(t *testing.T) {
 		{
 			name: "marks token used",
 			run: func(t *testing.T) {
+				queries := repository.New(testutil.MustOpenMigratedPostgres(t))
 				user := seedRepositoryUser(ctx, t, queries)
 				token := mustCreateRepositoryToken(ctx, t, queries, user.ID, "used")
 				require.Nil(t, token.LastUsedAt)
@@ -101,6 +102,7 @@ func TestTokenQueries(t *testing.T) {
 		{
 			name: "revokes token",
 			run: func(t *testing.T) {
+				queries := repository.New(testutil.MustOpenMigratedPostgres(t))
 				user := seedRepositoryUser(ctx, t, queries)
 				token := mustCreateRepositoryToken(ctx, t, queries, user.ID, "revoke")
 
@@ -115,6 +117,7 @@ func TestTokenQueries(t *testing.T) {
 		{
 			name: "returns no rows for missing token lookups",
 			run: func(t *testing.T) {
+				queries := repository.New(testutil.MustOpenMigratedPostgres(t))
 				user := seedRepositoryUser(ctx, t, queries)
 
 				_, err := queries.GetTokenByID(ctx, repository.GetTokenByIDParams{
@@ -136,6 +139,8 @@ func TestTokenQueries(t *testing.T) {
 		{
 			name: "supports queries within transaction",
 			run: func(t *testing.T) {
+				pool := testutil.MustOpenMigratedPostgres(t)
+				queries := repository.New(pool)
 				user := seedRepositoryUser(ctx, t, queries)
 				tx, err := pool.Begin(ctx)
 				require.NoError(t, err)

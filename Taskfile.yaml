@@ -24,16 +24,16 @@ tasks:
   test:
     desc: Run tests
     cmds:
-      - go tool gotestsum -- ./...
+      - go tool gotestsum -- ./internal/...
 
   coverage:
     desc: Generate coverage report
     cmds:
       - |
         bash -lc 'set -euo pipefail; \
-        packages="$(go list ./... | grep -vE "^github.com/rhajizada/llamero/(cmd($|/)|docs$|internal/testutil$)")"; \
-        coverpkg="$(printf "%s" "$packages" | tr "\n" "," | sed "s/,$//")"; \
-        go tool gotestsum -- -coverpkg="$coverpkg" -coverprofile=coverage.out $packages > /dev/null; \
+        mapfile -t packages < <(go list ./... | grep -vE "^github.com/rhajizada/llamero/(docs$|internal/testutil$|ui($|/))"); \
+        coverpkg="$(IFS=,; echo "${packages[*]}")"; \
+        go tool gotestsum -- -coverpkg="$coverpkg" -coverprofile=coverage.out "${packages[@]}" > /dev/null; \
         go tool cover -func=coverage.out'
 
   sqlc:

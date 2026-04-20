@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/rhajizada/llamero/internal/proxy"
 )
 
@@ -48,13 +51,9 @@ func TestForwardLLM(t *testing.T) {
 	req.RemoteAddr = "10.0.0.5:1234"
 
 	resp, err := client.ForwardLLM(req, backend.URL+"/base", []byte(`{"model":"llama3"}`))
-	if err != nil {
-		t.Fatalf("ForwardLLM returned error: %v", err)
-	}
+	require.NoError(t, err)
 	defer resp.Body.Close()
-	if resp.Header.Get("X-Backend") != "ok" {
-		t.Fatalf("unexpected backend header: %q", resp.Header.Get("X-Backend"))
-	}
+	assert.Equal(t, "ok", resp.Header.Get("X-Backend"))
 }
 
 func TestForwardGET(t *testing.T) {
@@ -76,14 +75,10 @@ func TestForwardGET(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "https://api.example.com/api/backends/id/tags", nil)
 	req.Host = "api.example.com"
 	resp, err := client.ForwardGET(req, backend.URL+"/base", "/api/tags")
-	if err != nil {
-		t.Fatalf("ForwardGET returned error: %v", err)
-	}
+	require.NoError(t, err)
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
-	if string(body) != "tags" {
-		t.Fatalf("unexpected GET body: %s", string(body))
-	}
+	assert.Equal(t, "tags", string(body))
 }
 
 func TestWriteResponse(t *testing.T) {
@@ -98,15 +93,11 @@ func TestWriteResponse(t *testing.T) {
 		},
 		Body: io.NopCloser(strings.NewReader("hello")),
 	}
-	if err := proxy.WriteResponse(rec, resp); err != nil {
-		t.Fatalf("WriteResponse returned error: %v", err)
-	}
-	if rec.Code != http.StatusAccepted ||
-		rec.Header().Get("X-Response") != "ok" ||
-		rec.Header().Get("Connection") != "" ||
-		rec.Body.String() != "hello" {
-		t.Fatalf("unexpected proxied response: code=%d headers=%#v body=%q", rec.Code, rec.Header(), rec.Body.String())
-	}
+	require.NoError(t, proxy.WriteResponse(rec, resp))
+	assert.Equal(t, http.StatusAccepted, rec.Code)
+	assert.Equal(t, "ok", rec.Header().Get("X-Response"))
+	assert.Empty(t, rec.Header().Get("Connection"))
+	assert.Equal(t, "hello", rec.Body.String())
 }
 
 func TestForwardErrorsAndPathVariants(t *testing.T) {
@@ -146,9 +137,8 @@ func TestForwardErrorsAndPathVariants(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			req := httptest.NewRequest(tc.method, tc.requestPath, nil)
-			if _, err := tc.call(req); err == nil {
-				t.Fatal("expected error")
-			}
+			_, err := tc.call(req)
+			assert.Error(t, err)
 		})
 	}
 
@@ -178,17 +168,11 @@ func TestForwardErrorsAndPathVariants(t *testing.T) {
 				req.Header.Set("X-Forwarded-Port", "9000")
 			}
 			resp, err := client.ForwardLLM(req, backend.URL+"/base", []byte(`{"model":"llama3"}`))
-			if err != nil {
-				t.Fatalf("ForwardLLM returned error: %v", err)
-			}
+			require.NoError(t, err)
 			defer resp.Body.Close()
 			body, _ := io.ReadAll(resp.Body)
-			if string(body) != tc.expected {
-				t.Fatalf("unexpected path body: got %q want %q", string(body), tc.expected)
-			}
-			if got := resp.Header.Get("X-Forwarded-Port-Seen"); got != tc.port {
-				t.Fatalf("unexpected forwarded port: got %q want %q", got, tc.port)
-			}
+			assert.Equal(t, tc.expected, string(body))
+			assert.Equal(t, tc.port, resp.Header.Get("X-Forwarded-Port-Seen"))
 		})
 	}
 }
