@@ -1,6 +1,6 @@
 module github.com/rhajizada/llamero
 
-go 1.26
+go 1.26.0
 
 tool (
 	github.com/pressly/goose/v3/cmd/goose
@@ -10,15 +10,14 @@ tool (
 )
 
 require (
-	github.com/alicebob/miniredis/v2 v2.37.0
-	github.com/caarlos0/env/v11 v11.4.0
+	github.com/caarlos0/env/v11 v11.4.1
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/hibiken/asynq v0.26.0
-	github.com/jackc/pgx/v5 v5.9.1
-	github.com/ollama/ollama v0.20.7
+	github.com/jackc/pgx/v5 v5.9.2
+	github.com/ollama/ollama v0.24.0
 	github.com/pressly/goose/v3 v3.27.0
-	github.com/redis/go-redis/v9 v9.18.0
+	github.com/redis/go-redis/v9 v9.19.0
 	github.com/stretchr/testify v1.11.1
 	github.com/swaggo/http-swagger v1.3.4
 	github.com/swaggo/swag v1.16.6
@@ -52,7 +51,6 @@ require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.6 // indirect
 	github.com/cubicdaiya/gonp v1.0.4 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/dnephin/pflag v1.0.7 // indirect
 	github.com/docker/go-connections v0.6.0 // indirect
@@ -150,7 +148,6 @@ require (
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
 	github.com/ydb-platform/ydb-go-genproto v0.0.0-20260128080146-c4ed16b24b37 // indirect
 	github.com/ydb-platform/ydb-go-sdk/v3 v3.127.0 // indirect
-	github.com/yuin/gopher-lua v1.1.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	github.com/ziutek/mymysql v1.5.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
